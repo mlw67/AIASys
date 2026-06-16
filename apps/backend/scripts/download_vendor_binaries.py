@@ -4,9 +4,9 @@
 
 用于本地开发场景（直接 uvicorn 启动 backend，不经过 desktop 的 prepare-runtime）。
 会按需下载：
-  - uv          -> vendor/uv/<platform>/
-  - fnm         -> vendor/node/<platform>/
-  - sqlite-vec  -> vendor/sqlite-vec/<platform>/
+    - uv          -> vendor/uv/<platform>/
+    - fnm         -> vendor/node/<platform>/
+    - sqlite-vec  -> vendor/sqlite-vec/<platform>/
 
 这些二进制原本由 apps/desktop/scripts/prepare-runtime.cjs 在打包桌面版时下载。
 本脚本让纯后端开发也能自动补齐它们。
