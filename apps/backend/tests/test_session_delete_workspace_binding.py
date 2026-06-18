@@ -5,14 +5,14 @@ from pathlib import Path
 import pytest
 from fastapi import BackgroundTasks
 
+import app.services.agent as agent_module
+import app.services.auto_tasks.engine as auto_task_engine
+from app.agents.tools.local_ipython_box import LocalIPythonBox
 from app.api.routes import sessions_branches as session_route
 from app.api.routes import workspaces_core as workspace_route
 from app.api.routes.sessions_branches import delete_session
 from app.api.routes.workspaces_core import delete_workspace
-from app.agents.tools.local_ipython_box import LocalIPythonBox
 from app.models.user import UserInfo
-import app.services.agent as agent_module
-import app.services.auto_tasks.engine as auto_task_engine
 from app.services.auto_tasks.engine import AutoTaskStore
 from app.services.auto_tasks.models import AutoTask, AutoTaskTriggerType, TaskStatus
 from app.services.session import SessionManager

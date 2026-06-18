@@ -3,8 +3,8 @@ from __future__ import annotations
 import atexit
 import os
 import sys
-import types
 import tempfile
+import types
 from pathlib import Path
 from shutil import copyfile
 
@@ -80,6 +80,7 @@ if "app.services.execution_replay_risk" not in sys.modules:
 def _clean_connector_tables():
     """每次测试前后清空隔离 SQLite 资源表，避免共享库互相污染。"""
     from sqlalchemy import text
+
     from app.core.database import Base, SessionLocal, engine
 
     database_url = os.getenv("DATABASE_URL", "")
@@ -124,11 +125,12 @@ def isolated_llm_config(monkeypatch, tmp_path):
 
     该 fixture 不依赖 AIASys 系统的 config.toml，适合需要验证模型能力差异的测试。
     """
+    from pydantic import SecretStr
+
     from app.core import config as core_config
     from app.models.llm_provider import LLMModelConfig, LLMProviderConfig
     from app.services.llm.llm_config_service import LLMConfigService
     from app.storage.llm_provider_storage import LLMProviderStorage
-    from pydantic import SecretStr
 
     user_id = f"test_user_{os.getpid()}"
     config_dir = tmp_path / user_id / ".aiasys"

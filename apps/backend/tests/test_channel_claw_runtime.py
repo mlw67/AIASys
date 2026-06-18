@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.models.claw import SessionClawBindingRequest
-from app.services.channel import ChannelEntry, ChannelConfig, get_channel_config
+from app.services.channel import ChannelConfig, ChannelEntry, get_channel_config
 from app.services.claw import ClawService
 from app.services.session import SessionManager
 

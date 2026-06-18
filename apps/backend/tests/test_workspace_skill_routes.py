@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import io
 import inspect
+import io
 import zipfile
 from pathlib import Path
 

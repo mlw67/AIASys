@@ -316,7 +316,8 @@ def _resolve_bound_python_env(
 def _get_available_shells() -> List[str]:
     """检测当前系统可用的 shell 列表。"""
     shells = []
-    candidates = ["bash", "sh", "cmd", "powershell", "pwsh", "zsh", "fish"]
+    # cmd.exe 已禁用，不再列入候选
+    candidates = ["bash", "sh", "powershell", "pwsh", "zsh", "fish"]
     for shell in candidates:
         if shutil.which(shell):
             shells.append(shell)

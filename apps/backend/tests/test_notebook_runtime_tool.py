@@ -4,10 +4,10 @@ import json
 from pathlib import Path
 
 import pytest
-# ToolError/ToolOk removed, use result.is_error
 
+# ToolError/ToolOk removed, use result.is_error
 from app.agents.tools import notebook_runtime_tool as notebook_runtime_module
-from app.agents.tools.notebook_runtime_tool import RunNotebookParams, RunNotebook
+from app.agents.tools.notebook_runtime_tool import RunNotebook, RunNotebookParams
 from app.services.history import (
     SessionExecutionJournal,
     current_session_id,

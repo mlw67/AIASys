@@ -5,8 +5,7 @@ import contextlib
 import sys
 from collections import defaultdict
 from pathlib import Path
-from types import ModuleType
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -14,6 +13,7 @@ import pytest
 
 from app.models.claw import SessionClawBindingRequest
 from app.services.channel import ChannelEntry, get_channel_config
+from app.services.claw import ClawService
 from app.services.claw_runtime import (
     ClawFeishuRuntime,
     ClawPendingBinding,
@@ -21,7 +21,6 @@ from app.services.claw_runtime import (
     ClawRuntimeManager,
     ClawWeixinRuntime,
 )
-from app.services.claw import ClawService
 from app.services.session import SessionManager
 
 

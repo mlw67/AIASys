@@ -16,7 +16,6 @@ from app.services.memory.resolver import get_user_memory_file_path
 from app.services.memory.store import MemoryStore
 from app.services.workspace_registry import WorkspaceRegistryService
 
-
 CURRENT_USER = UserInfo(
     user_id="local_default",
     role="admin",

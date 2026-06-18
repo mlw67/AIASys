@@ -1,11 +1,8 @@
 """测试 WorkspaceExportService 的对话导出功能。"""
 
-import io
 import json
 import zipfile
 from pathlib import Path
-
-import pytest
 
 from app.services.export.workspace_export_service import WorkspaceExportService
 

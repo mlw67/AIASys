@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import yaml
 
-from app.api.routes import agent_config as agent_config_route
 from app.models.user import UserInfo
-from app.services.agent_config.models import AgentMode
-from app.services.agent_config.service import AgentConfigService
 from app.services.agent_config import service as service_module
+from app.services.agent_config.models import AgentMode
 from app.services.runtime_tooling import NATIVE_TASK_TOOL_PATH, RuntimeToolAvailability
 
 TODO_LIST_TOOL_PATH = "app.agents.tools.task_plan_tools:SetTodoList"

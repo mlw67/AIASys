@@ -375,7 +375,7 @@ class AcpClientRuntimeSession:
         elif method == "fs/read_text_file":
             try:
                 path = _ensure_path_within_cwd(str(params.get("path") or ""), cwd)
-                content = path.read_text() if path.exists() else ""
+                content = path.read_text(encoding="utf-8") if path.exists() else ""
                 line = params.get("line")
                 limit = params.get("limit")
                 if isinstance(line, int) and line > 1:
@@ -394,7 +394,7 @@ class AcpClientRuntimeSession:
             try:
                 path = _ensure_path_within_cwd(str(params.get("path") or ""), cwd)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(str(params.get("content") or ""))
+                path.write_text(str(params.get("content") or ""), encoding="utf-8")
                 response = {"jsonrpc": "2.0", "id": message_id, "result": None}
             except Exception as exc:
                 response = _jsonrpc_error(message_id, -32602, str(exc))

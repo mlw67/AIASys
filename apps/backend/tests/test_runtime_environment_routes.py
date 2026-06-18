@@ -13,8 +13,8 @@ from app.models.runtime_environment import (
     RegisterWorkspacePythonEnvRequest,
     RuntimeEnvCommandResult,
 )
-from app.models.workspace import ExecutionResourceGroup, WorkspaceRuntimeBinding
 from app.models.user import UserInfo
+from app.models.workspace import ExecutionResourceGroup, WorkspaceRuntimeBinding
 from app.services.runtime_environment import RuntimeEnvironmentService
 from app.services.session import SessionManager
 from app.services.workspace_registry import WorkspaceRegistryService

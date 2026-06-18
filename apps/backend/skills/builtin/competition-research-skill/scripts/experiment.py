@@ -259,7 +259,7 @@ def generate_plan(data: dict, methods: list[dict], project_dir: Path | None = No
                 ap_texts.append(f"{ap.get('pattern', str(ap))}")
             else:
                 ap_texts.append(str(ap))
-        hypothesis += f"\n注意：以下方向已被验证无效，应避免重复 — " + "; ".join(ap_texts)
+        hypothesis += "\n注意：以下方向已被验证无效，应避免重复 — " + "; ".join(ap_texts)
 
     # 阶段转换建议
     phase_transition_hint = ""

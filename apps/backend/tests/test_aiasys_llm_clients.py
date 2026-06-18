@@ -7,6 +7,10 @@ from typing import Any
 
 import pytest
 
+from app.services.agent.runtime_backends.aiasys.llm_clients import create_llm_client
+from app.services.agent.runtime_backends.aiasys.llm_clients.anthropic_client import (
+    AnthropicChatClient,
+)
 from app.services.agent.runtime_backends.aiasys.llm_clients.base import (
     LlmChunk,
     LlmDelta,
@@ -24,11 +28,6 @@ from app.services.agent.runtime_backends.aiasys.llm_clients.openai_client import
     OpenAIChatClient,
 )
 from app.services.agent.runtime_backends.aiasys.llm_clients.retry_utils import jittered_backoff
-from app.services.agent.runtime_backends.aiasys.llm_clients.anthropic_client import (
-    AnthropicChatClient,
-)
-from app.services.agent.runtime_backends.aiasys.llm_clients import create_llm_client
-
 
 # ── Error Classifier Tests ──────────────────────────────────────────────
 
@@ -262,8 +261,8 @@ class _FakeFailingClientFactory:
 @pytest.fixture(autouse=True)
 def _patch_create_llm_client(monkeypatch):
     """在测试中将 create_llm_client 替换为可控版本。"""
-    import app.services.agent.runtime_backends.aiasys.provider_router as pr_mod
     import app.services.agent.runtime_backends.aiasys.llm_clients as lc_mod
+    import app.services.agent.runtime_backends.aiasys.provider_router as pr_mod
 
     _original_pr = pr_mod.create_llm_client
     _original_lc = lc_mod.create_llm_client
@@ -398,7 +397,6 @@ async def test_router_aclose_closes_current_client():
 
 from app.services.agent.runtime_backends.aiasys.llm_clients.credential_pool import (
     CredentialPool,
-    PooledCredential,
 )
 
 
@@ -529,8 +527,8 @@ class _FakeKeyTrackingFactory:
 
 async def test_router_rotates_credentials_within_provider(monkeypatch):
     """同一 provider 配置了多个 key，第一个 key billing 耗尽后应切换到第二个 key。"""
-    import app.services.agent.runtime_backends.aiasys.provider_router as pr_mod
     import app.services.agent.runtime_backends.aiasys.llm_clients as lc_mod
+    import app.services.agent.runtime_backends.aiasys.provider_router as pr_mod
 
     _orig_pr = pr_mod.create_llm_client
     _orig_lc = lc_mod.create_llm_client
@@ -559,8 +557,8 @@ async def test_router_rotates_credentials_within_provider(monkeypatch):
 
 async def test_router_fallback_when_all_credentials_exhausted(monkeypatch):
     """同一 provider 所有 key 耗尽后应 fallback 到下一个 provider。"""
-    import app.services.agent.runtime_backends.aiasys.provider_router as pr_mod
     import app.services.agent.runtime_backends.aiasys.llm_clients as lc_mod
+    import app.services.agent.runtime_backends.aiasys.provider_router as pr_mod
 
     _orig_pr = pr_mod.create_llm_client
     _orig_lc = lc_mod.create_llm_client

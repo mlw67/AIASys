@@ -6,7 +6,6 @@ import pytest
 
 from app.core.tool_result import ToolResult
 from app.services.agent.runtime_backends.aiasys.tools.memory_tool import MemoryTool
-from app.services.memory.store import MemoryStore
 
 
 @pytest.fixture

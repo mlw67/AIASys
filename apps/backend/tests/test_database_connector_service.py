@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-import asyncio
-import json
 from pathlib import Path
 
 import pytest
 
-from app.agents.tools.ask_user.models import AskUserResponse, AskUserStore
-from app.agents.tools.ask_user.tool import AskUser
 from app.models.database_connector import (
     DatabaseConnectorDraft,
     UpdateDatabaseConnectorRequest,
 )
 from app.services.connector import (
-    DatabaseConnectorApprovalRejectedError,
-    DatabaseConnectorPlatformRejectionError,
-    DatabaseConnectorRemotePermissionError,
     DatabaseConnectorService,
 )
 from app.services.session import SessionManager
@@ -23,7 +16,7 @@ from app.services.session import SessionManager
 
 def _get_connector_from_db(user_id: str, connector_id: str | None = None):
     """从 DuckDB 查询连接器记录（替代直接读取 JSON 文件）"""
-    from app.core.database import SessionLocal, DatabaseConnectorORM
+    from app.core.database import DatabaseConnectorORM, SessionLocal
 
     db = SessionLocal()
     try:
@@ -37,7 +30,7 @@ def _get_connector_from_db(user_id: str, connector_id: str | None = None):
 
 def _get_attachments_from_db(session_id: str, connector_id: str | None = None):
     """从 DuckDB 查询会话挂载记录（替代直接读取 JSON 文件）"""
-    from app.core.database import SessionLocal, SessionAttachmentORM
+    from app.core.database import SessionAttachmentORM, SessionLocal
 
     db = SessionLocal()
     try:

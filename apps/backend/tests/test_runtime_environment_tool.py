@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pytest
 
+from app.agents.tools import runtime_environment_tool as runtime_environment_tool_module
 from app.agents.tools.runtime_environment_tool import RuntimeEnvironment
 from app.models.runtime_environment import RuntimeEnvCommandResult, RuntimeEnvPackage
 from app.models.workspace import ExecutionResourceGroup, WorkspaceRuntimeBinding
 from app.services import runtime_environment as runtime_environment_module
-from app.agents.tools import runtime_environment_tool as runtime_environment_tool_module
+from app.services import workspace_registry as workspace_registry_module
 from app.services.history import current_session_id, current_user_id, current_workspace
 from app.services.runtime.runtime_execution import resolve_runtime_execution_plan
 from app.services.runtime_environment import RuntimeEnvironmentService
 from app.services.session import SessionManager
-from app.services import workspace_registry as workspace_registry_module
 from app.services.workspace_registry import WorkspaceRegistryService
 
 

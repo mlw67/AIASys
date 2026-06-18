@@ -4,12 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
-from app.core.tool_result import ToolResult
 
 from app.agents.tools.notebook_file_tool import (
-    EditNotebookParams,
     EditNotebookFile,
-    NotebookOperation,
     ReadNotebook,
 )
 from app.services.history import current_session_root, current_workspace

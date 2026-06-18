@@ -175,7 +175,7 @@ async def test_build_runtime_config_projection_reports_pending_versions(
 
     mcp_manager_module.WORKSPACE_DIR = tmp_path
     from app.mcp import MCPManager
-    from app.mcp.models import MCPServerDefinition, MCPConfig
+    from app.mcp.models import MCPConfig, MCPServerDefinition
 
     mgr = MCPManager()
     workspace_config = MCPConfig(

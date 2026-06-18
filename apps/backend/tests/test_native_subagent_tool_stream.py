@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any
-
 import pytest
 
 from app.core.agent_tool import AiasysTool
 from app.core.tool_result import ToolResult
 from app.services.agent.runtime_backends.aiasys.tool_registry import ToolRegistry
-from app.services.agent.runtime_backends.base import AgentRuntimeEvent
 from app.services.agent.runtime_backends.aiasys.tools.task_tool import (
     _annotate_subagent_runtime_event,
     _streaming_event,
 )
+from app.services.agent.runtime_backends.base import AgentRuntimeEvent
 
 
 class EchoTool(AiasysTool):

@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from app.agents.tools.file_tools import (
-    ReadFileParams,
-    ReadFile,
-    StrReplaceFileParams,
-    StrReplaceFile,
-    WriteFileParams,
-    WriteFile,
     FileEdit,
+    ReadFile,
+    ReadFileParams,
+    StrReplaceFile,
+    StrReplaceFileParams,
+    WriteFile,
+    WriteFileParams,
 )
-from app.services.history import current_global_workspace, current_session_root, current_workspace
 from app.services.file_history import file_history_service
+from app.services.history import current_global_workspace, current_workspace
 
 
 @pytest.fixture

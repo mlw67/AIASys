@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import sqlite3
 from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
 
-from app.core import config as config_module
-from app.services import workspace_registry as workspace_registry_module
 from app.api.routes import data_tables as data_tables_route_module
 from app.api.routes import workspaces_resources_files as files_route_module
 from app.api.routes import workspaces_resources_tree as tree_route_module
@@ -18,7 +15,9 @@ from app.api.routes.files_utils import (
     FileContentRequest,
     FileCreateRequest,
 )
+from app.core import config as config_module
 from app.models.user import UserInfo
+from app.services import workspace_registry as workspace_registry_module
 from app.services.data_table_service import DataTableColumnDef, DataTableCreateRequest
 from app.services.session import SessionManager
 from app.services.workspace_registry import WorkspaceRegistryService

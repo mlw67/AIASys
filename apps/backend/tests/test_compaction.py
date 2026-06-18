@@ -4,8 +4,9 @@ Tests for AIASys context compaction mechanism.
 
 from __future__ import annotations
 
-import pytest
 from typing import Any
+
+import pytest
 
 from app.services.agent.compaction import (
     CompactionResult,

@@ -9,7 +9,6 @@ from app.models.expert import ExpertRoleSummary, SessionExpertPolicyResponse
 from app.models.user import UserInfo
 from app.services.history.session_execution_journal import SessionExecutionJournal
 from app.services.session import SessionManager
-
 from app.services.workspace_registry import WorkspaceRegistryService
 
 

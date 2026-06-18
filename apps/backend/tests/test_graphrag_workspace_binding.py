@@ -7,14 +7,13 @@ import networkx as nx
 import pytest
 from fastapi import HTTPException
 
-from app.graphrag.api import routes as graph_routes
 from app.core import config as config_module
+from app.graphrag.api import routes as graph_routes
 from app.graphrag.models.entity import Entity
 from app.graphrag.models.relation import Relation
 from app.graphrag.service import GraphRAGService
 from app.models.user import UserInfo
 from app.services.session import SessionManager
-
 from app.services.workspace_registry import WorkspaceRegistryService
 
 

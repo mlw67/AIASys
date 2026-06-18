@@ -1,7 +1,7 @@
 from app.services.history.session_history_projection import (
     apply_display_content_to_history,
-    wrap_user_prompt,
     unwrap_user_prompt,
+    wrap_user_prompt,
 )
 
 

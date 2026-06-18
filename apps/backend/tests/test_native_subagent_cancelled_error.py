@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -97,7 +96,6 @@ async def test_invoke_stream_sets_cancelled_status_on_cancelled_error(
     mock_session.prompt.assert_called_once()
 
     # 验证 storage 目录已创建且状态为 cancelled
-    from app.services.agent.subagent_storage import SubAgentStorage
 
     # agent_id 格式: {subagent_name}_{uuid.hex[:12]}
     # 需要从实际创建的 storage 中读取，但 agent_id 在 invoke_stream 内部生成。

@@ -8,8 +8,8 @@ import pytest
 from app.agents.tools import local_ipython_box as local_ipython_box_module
 from app.agents.tools.local_ipython_box import LocalIPythonBox, LocalIPythonBoxParams
 from app.models.runtime_environment import WorkspaceRuntimeEnv
-from app.services.history import SessionExecutionJournal
 from app.services.history import (
+    SessionExecutionJournal,
     current_env_id,
     current_session_id,
     current_session_root,

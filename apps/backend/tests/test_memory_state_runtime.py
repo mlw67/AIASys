@@ -4,14 +4,13 @@ from pathlib import Path
 
 import pytest
 
+from app.services.memory.constants import USER_DEFAULT_GLOBAL_WORKSPACE_SCOPE
 from app.services.memory.pipeline import (
     MemoryPipelineService,
     get_memory_state_runtime,
     schedule_stage1_for_session,
     schedule_stage2_consolidation,
 )
-from app.services.memory.constants import USER_DEFAULT_GLOBAL_WORKSPACE_SCOPE
-from app.services.memory.models import MemoryScope
 from app.services.memory.resolver import get_workspace_memory_file_path
 from app.services.memory.state_runtime import MemoryStateRuntime
 from app.services.memory.store import MemoryStore

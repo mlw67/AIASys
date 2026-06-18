@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import shutil
-from pathlib import Path
 
 from fastapi import BackgroundTasks
 
@@ -10,7 +9,6 @@ from app.api.routes import sessions as sessions_module
 from app.api.routes.sessions_branches import delete_session
 from app.core.config import WORKSPACE_DIR
 from app.models.user import UserInfo
-
 
 TEST_USER_ID = "session_delete_test_user"
 TEST_SESSION_ID = "session_delete_test_session"

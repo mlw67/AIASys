@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 from app.services.llm.mcp_session_service import MCPSessionService
-from app.services.workspace_registry import WorkspaceRegistryService
 from app.services.session import SessionManager
+from app.services.workspace_registry import WorkspaceRegistryService
 
 
 def _write_metadata(path: Path, mode: str) -> None:

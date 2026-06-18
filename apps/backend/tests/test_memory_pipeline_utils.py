@@ -1,7 +1,5 @@
 """Memory pipeline 工具函数测试。"""
 
-import pytest
-
 from app.services.memory.pipeline import (
     _deep_truncate_strings,
     _safe_truncate_prompt_text,

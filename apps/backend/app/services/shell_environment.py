@@ -337,7 +337,9 @@ def _recommend_family(is_windows: bool, components: list[ShellComponentInfo]) ->
         return "busybox"
     if shutil.which("pwsh") or shutil.which("powershell"):
         return "powershell"
-    return "cmd"
+    # cmd.exe 已禁用，即使无 POSIX shell 也按 powershell 上报，
+    # ShellExecutor 会将 cmd 请求降级到 powershell
+    return "powershell"
 
 
 def _build_guidance(is_windows: bool, family: str, components: list[ShellComponentInfo]) -> str:
@@ -351,11 +353,10 @@ def _build_guidance(is_windows: bool, family: str, components: list[ShellCompone
     if family == "busybox":
         return "当前使用 busybox-w32（ash），仅支持基础 POSIX 命令，避免使用 GNU bash 扩展。"
     if family == "powershell":
-        return "未检测到 POSIX shell，当前回退到 PowerShell；请使用 cmdlet/PS 语法。"
-    if family == "cmd":
+        # cmd.exe 已移除，powershell 是 Windows 上的最终回退
         git_bash = by_id.get("git_bash")
         busybox = by_id.get("busybox_w32")
-        parts = ["未检测到 POSIX shell，当前回退到 CMD，仅支持最基础命令。"]
+        parts = ["未检测到 POSIX shell，当前回退到 PowerShell；请使用 cmdlet/PS 语法。"]
         if git_bash and not git_bash.installed:
             parts.append("建议安装 Git Bash 以获得完整的 POSIX 支持。")
         if busybox and not busybox.installed:

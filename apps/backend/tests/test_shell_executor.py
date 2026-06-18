@@ -166,15 +166,8 @@ def test_windows_cmd_no_fallback_when_no_powershell(monkeypatch: pytest.MonkeyPa
         ex.detect_interpreter("cmd")
 
 
-@pytest.mark.asyncio
-@pytest.mark.skipif(__import__("os").name != "nt", reason="Windows-only")
-async def test_windows_git_bash_cwd_keeps_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Windows + Git Bash 时 cwd 必须保持 Windows 路径，避免 WinError 267。"""
-    ex = ShellExecutor()
-    fake_bash = r"C:\Program Files\Git\bin\bash.exe"
-    monkeypatch.setattr(ex, "_is_windows", True)
-    monkeypatch.setattr(ex, "_find_git_bash", lambda: fake_bash)
-
+def _make_fake_spawn_captor(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    """创建一个假的 create_subprocess_exec，捕获 spawn 参数。"""
     captured: dict[str, object] = {}
 
     async def fake_create_subprocess_exec(*args, **kwargs):
@@ -189,9 +182,76 @@ async def test_windows_git_bash_cwd_keeps_windows_path(monkeypatch: pytest.Monke
         return FakeProc()
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
+    return captured
+
+
+@pytest.mark.asyncio
+async def test_windows_git_bash_cwd_keeps_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows + Git Bash 时 cwd 必须保持 Windows 路径，避免 WinError 267。"""
+    ex = ShellExecutor()
+    monkeypatch.setattr(ex, "_is_windows", True)
+
+    captured = _make_fake_spawn_captor(monkeypatch)
 
     await ex.spawn(
         "echo hi", options=ShellOptions(cwd=r"C:\Users\ke\workspace"), interpreter="bash"
     )
 
     assert captured["cwd"] == r"C:\Users\ke\workspace"
+
+
+@pytest.mark.asyncio
+async def test_windows_wsl_cwd_prepends_cd_and_keeps_host_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows + WSL shell 时 host_cwd 保持 Windows 路径，命令前加 cd 切换到 WSL 挂载路径。"""
+    ex = ShellExecutor()
+    monkeypatch.setattr(ex, "_is_windows", True)
+    fake_wsl = r"C:\Windows\System32\wsl.exe"
+    monkeypatch.setattr(ex, "_find_wsl_bash", lambda: fake_wsl)
+    # bash 关键字在 Windows 上若 Git Bash 不可用则回退到 WSL
+    monkeypatch.setattr(ex, "_find_git_bash", lambda: None)
+    monkeypatch.setattr(ex, "_find_bash", lambda: None)
+
+    captured = _make_fake_spawn_captor(monkeypatch)
+
+    await ex.spawn("echo hi", options=ShellOptions(cwd=r"C:\Users\ke\workspace"), interpreter="wsl")
+
+    # host_cwd 必须是 Windows 原生路径，传给 CreateProcessW
+    assert captured["cwd"] == r"C:\Users\ke\workspace"
+    # 命令前应已加 cd /mnt/c/Users/ke/workspace
+    argv = captured["args"]
+    command_arg = argv[-1]
+    assert command_arg.startswith("cd ")
+    assert "/mnt/c/Users/ke/workspace" in command_arg
+    assert "echo hi" in command_arg
+
+
+@pytest.mark.asyncio
+async def test_native_posix_cwd_passed_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    """原生 Linux/macOS 上 cwd 直接透传给子进程。"""
+    ex = ShellExecutor()
+    # 确保不是 Windows、不是 WSL 后端
+    monkeypatch.setattr(ex, "_is_windows", False)
+    monkeypatch.setattr(ShellExecutor, "is_wsl", staticmethod(lambda: False))
+
+    captured = _make_fake_spawn_captor(monkeypatch)
+
+    workspace = "/tmp/aiasys-test-workspace"
+    await ex.spawn("echo hi", options=ShellOptions(cwd=workspace), interpreter="bash")
+
+    assert captured["cwd"] == workspace
+
+
+@pytest.mark.asyncio
+async def test_cwd_none_when_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """不设置 cwd 时 spawn_kwargs 的 cwd 应为 None。"""
+    ex = ShellExecutor()
+    monkeypatch.setattr(ex, "_is_windows", False)
+    monkeypatch.setattr(ShellExecutor, "is_wsl", staticmethod(lambda: False))
+
+    captured = _make_fake_spawn_captor(monkeypatch)
+
+    await ex.spawn("echo hi", interpreter="bash")
+
+    assert captured["cwd"] is None

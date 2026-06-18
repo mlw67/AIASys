@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 import re
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -515,25 +516,33 @@ class ShellExecutor:
         shell_path, shell_args, shell_family = self.detect_interpreter(interpreter)
 
         # Windows 上 create_subprocess_exec 最终调用 CreateProcessW，cwd 必须是
-        # 原生 Windows 路径。对于 POSIX shell，我们通过在命令前加 cd 来切换目录。
+        # 原生 Windows 路径。对于 WSL shell，Windows 路径传给 CreateProcessW，
+        # 命令前加 cd 切换到 WSL 挂载路径，确保 bash 内部工作目录正确。
         host_cwd: str | None = None
         cwd = options.cwd
         if cwd is not None:
             cwd = str(cwd)
-            # Windows + Git Bash：保持 Windows 路径传给 CreateProcessW。
-            # bash.exe 是 Windows 可执行文件，cwd 必须能被 Windows 子系统识别；
-            # 转成 /c/foo/bar 会导致 WinError 267 "目录名称无效"。
             if shell_family == "wsl":
+                # WSL: wsl.exe 是 Windows 可执行文件，host_cwd 用 Windows 原生路径。
+                # bash 内部需要 WSL 挂载路径，通过命令前加 cd 显式切换。
                 wsl_cwd = self.win_path_to_wsl(cwd)
                 if wsl_cwd:
-                    cwd = wsl_cwd
+                    command = f"cd {shlex.quote(wsl_cwd)} && {command}"
+                host_cwd = cwd
             elif self._is_windows and shell_family == "busybox":
                 # busybox-w32 接受 C:/foo/bar 风格，保留驱动器字母
-                cwd = cwd.replace("\\", "/")
+                host_cwd = cwd.replace("\\", "/")
+            elif self._is_windows and shell_family == "posix":
+                # Git Bash: bash.exe 是 Windows 可执行文件，直接用 Windows 原生路径。
+                # 转成 /c/foo/bar 会导致 CreateProcessW 报 WinError 267。
+                host_cwd = cwd
             elif self.is_wsl():
+                # 后端运行在 WSL 中，cwd 可能是 Windows 路径，转成 WSL 挂载路径
                 wsl_cwd = self.win_path_to_wsl(cwd)
-                if wsl_cwd:
-                    cwd = wsl_cwd
+                host_cwd = wsl_cwd or cwd
+            else:
+                # 原生 Linux/macOS，路径直接可用
+                host_cwd = cwd
 
         if self._is_windows and shell_family in ("posix", "wsl", "busybox"):
             command = self.rewrite_windows_null_redirect(command)

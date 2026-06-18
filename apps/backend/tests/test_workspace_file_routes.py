@@ -10,12 +10,12 @@ import pytest
 from fastapi import HTTPException
 from starlette.datastructures import UploadFile
 
-from app.core import config as config_module
 from app.api.routes import files as files_route
 from app.api.routes import files_core as files_core_route
 from app.api.routes import files_utils as files_utils_route
 from app.api.routes import workspaces as workspaces_route
 from app.api.routes import workspaces_resources_files as workspace_files_route
+from app.core import config as config_module
 from app.models.user import UserInfo
 from app.services import workspace_registry as workspace_registry_module
 from app.services.session import SessionManager

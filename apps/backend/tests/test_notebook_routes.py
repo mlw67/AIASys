@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from app.api.routes import notebooks as notebook_route
-from app.api.routes import notebooks_core as notebooks_core_mod
 from app.api.routes import notebooks_execution as notebooks_execution_mod
 from app.api.routes import notebooks_utils as notebooks_utils_mod
 from app.models.notebook import (

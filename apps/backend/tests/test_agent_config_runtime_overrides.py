@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -13,14 +12,13 @@ import app.services.agent.config as dynamic_agent_config_module
 import app.services.agent.subagent_catalog as subagent_catalog_module
 import app.services.agent_config as agent_config_package
 import app.services.session.config_projection as config_projection_module
-from app.services.agent.system_presets import get_local_system_preset_virtual_path
 from app.models.user import UserInfo
 from app.services.agent.mixins import session as session_module
+from app.services.agent.system_presets import get_local_system_preset_virtual_path
 from app.services.agent_config.models import AgentMode
 from app.services.agent_config.service import AgentConfigService
 from app.services.session import SessionManager
 from app.services.workspace_registry import WorkspaceRegistryService
-
 
 CURRENT_USER = UserInfo(
     user_id="runtime-config-user",

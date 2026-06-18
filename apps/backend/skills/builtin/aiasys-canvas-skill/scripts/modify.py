@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+
 from canvas_utils import (
     get_workspace_root,
     load_canvas,

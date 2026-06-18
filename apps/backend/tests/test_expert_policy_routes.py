@@ -8,7 +8,6 @@ from fastapi import HTTPException
 from app.api.routes import sessions as sessions_module
 from app.api.routes import sessions_execution as sessions_execution_module
 from app.api.routes import workspaces_core as workspaces_core_module
-from app.api.routes.sessions_branches import get_session_metadata
 from app.api.routes.workspaces_core import (
     get_global_expert_policy,
     get_global_experts,

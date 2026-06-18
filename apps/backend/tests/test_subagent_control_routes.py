@@ -7,7 +7,6 @@ import pytest
 from app.api.routes import sessions_execution as sessions_module
 from app.models.user import UserInfo
 
-
 CURRENT_USER = UserInfo(
     user_id="route-test-user",
     role="admin",

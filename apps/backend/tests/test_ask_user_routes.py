@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.agents.tools.ask_user.models import AskUserRequest, AskUserStore, AskUserType
+from app.api.routes import ask_user as ask_user_routes
 from app.api.routes.ask_user import (
     AskUserDevCreateRequest,
     AskUserResolveRequest,
@@ -13,9 +14,7 @@ from app.api.routes.ask_user import (
     get_pending_requests,
     resolve_ask_user,
 )
-from app.api.routes import ask_user as ask_user_routes
 from app.models.user import UserInfo
-
 
 OWNER_USER = UserInfo(user_id="ask-user-owner", role="user", auth_provider="none")
 OTHER_USER = UserInfo(user_id="ask-user-other", role="user", auth_provider="none")

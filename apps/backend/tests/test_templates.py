@@ -6,21 +6,19 @@ from pathlib import Path
 import pytest
 
 from app.core.templates import (
-    WorkspaceTemplate,
     TemplateFileSpec,
+    WorkspaceTemplate,
+    _dump_template_toml,
     _is_safe_relative_path,
     _is_safe_template_id,
-    _dump_template_toml,
     _load_template,
     _parse_env_vars,
-    _parse_recommended_capabilities,
-    _generate_template_id,
-    list_workspace_templates,
-    get_workspace_template,
-    build_template_payload,
     apply_template_to_workspace,
-    export_workspace_as_template,
+    build_template_payload,
     delete_user_template,
+    export_workspace_as_template,
+    get_workspace_template,
+    list_workspace_templates,
 )
 
 
@@ -113,7 +111,7 @@ class TestSourcePathTraversal:
         secret_file = tmp_path / "secret.txt"
         secret_file.write_text("SECRET", encoding="utf-8")
 
-        toml_content = f"""
+        toml_content = """
 template_id = "bad-tmpl"
 name = "Bad"
 [[files]]

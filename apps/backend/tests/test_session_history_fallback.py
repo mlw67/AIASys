@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from app.models.session import StructuredMessage
 import app.services.agent as agent_service_module
+from app.models.session import StructuredMessage
 from app.services.agent import agent_service
 from app.services.session import SessionManager
 

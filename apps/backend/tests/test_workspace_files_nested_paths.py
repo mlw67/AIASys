@@ -11,16 +11,15 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 
-from app.core.config import WORKSPACE_DIR
 from app.api.routes import workspaces as workspaces_route
 from app.api.routes import workspaces_resources_files as workspace_files_route
+from app.core.config import WORKSPACE_DIR
 from app.models.user import UserInfo
 from app.services.memory.resolver import (
     get_workspace_memory_file_path,
 )
 from app.services.memory.store import MemoryStore
 from app.services.workspace_registry import WorkspaceRegistryService
-
 
 TEST_USER_ID = "nested_paths_test_user"
 FILES_ROUTE_PATH = Path(__file__).resolve().parent.parent / "app/api/routes/files.py"

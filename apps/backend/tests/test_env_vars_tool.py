@@ -10,6 +10,7 @@ import pytest
 
 from app.agents.tools import env_vars_tool as env_vars_tool_module
 from app.agents.tools.env_vars_tool import DeleteEnvVar, SetEnvVar
+from app.services import workspace_registry as workspace_registry_module
 from app.services.global_env_vars import set_global_env_vars
 from app.services.history import (
     current_runtime_env_vars,
@@ -19,7 +20,6 @@ from app.services.history import (
 )
 from app.services.session import SessionManager
 from app.services.workspace_registry import WorkspaceRegistryService
-from app.services import workspace_registry as workspace_registry_module
 
 
 @pytest.fixture

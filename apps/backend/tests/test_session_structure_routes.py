@@ -5,20 +5,19 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+import app.agents.tools.local_ipython_box as local_ipython_box_module
 import app.api.routes.agent as agent_module
 import app.api.routes.agent_config as agent_config_route
 import app.api.routes.sessions as sessions_module
 import app.api.routes.sessions_branches as sessions_branches_module
 import app.api.routes.sessions_execution as sessions_execution_module
-import app.agents.tools.local_ipython_box as local_ipython_box_module
 import app.services.agent as agent_service_module
 import app.services.session.config_projection as config_projection_module
 from app.models.session import StructuredMessage
 from app.models.user import UserInfo
-from app.services.agent_config import AgentMode, AgentConfigService
+from app.services.agent_config import AgentConfigService, AgentMode
 from app.services.history import SessionExecutionJournal
 from app.services.session import SessionManager
-
 
 CURRENT_USER = UserInfo(user_id="session-structure-user", role="user", auth_provider="none")
 

@@ -84,9 +84,10 @@ function extractTarGz(archivePath, targetDir) {
       throw new Error("未找到可用的 Python 解释器（尝试 py/python3/python），无法解压 tar.gz");
     }
     console.log(`[download-sqlite-vec] 未找到 tar，使用 ${pyCmd} tarfile 解压`);
+    // 通过 sys.argv 传参，避免 Windows 反斜杠路径被 Python 解释为转义序列
     const pyResult = spawnSync(
       pyCmd,
-      ["-c", `import tarfile, os, gzip; ar="${archivePath.replace(/"/g, '\\"')}"; td="${targetDir.replace(/"/g, '\\"')}"; f=tarfile.open(ar, "r:gz" if ar.endswith(".gz") else "r"); f.extractall(td)`],
+      ["-c", "import sys, tarfile, gzip; ar=sys.argv[1]; td=sys.argv[2]; f=tarfile.open(ar, 'r:gz' if ar.endswith('.gz') else 'r'); f.extractall(td)", archivePath, targetDir],
       { encoding: "utf-8", stdio: "pipe" }
     );
     if (pyResult.status !== 0) {

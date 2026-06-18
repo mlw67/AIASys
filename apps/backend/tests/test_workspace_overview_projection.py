@@ -116,9 +116,9 @@ async def test_workspace_overview_returns_backend_projection(
         result_preview_text="overview",
     )
 
+    import app.api.routes.workspaces_overview_utils as overview_utils_module
     import app.core.config as config_module
     import app.knowledge as knowledge_module
-    import app.api.routes.workspaces_overview_utils as overview_utils_module
     import app.services.session.config_projection as config_projection_module
 
     class FakeKnowledgeService:

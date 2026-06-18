@@ -18,14 +18,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-
-from scripts.utils import parse_skill_md
 
 
 def get_dev_root(workspace: Path, skill_name: str) -> Path:
@@ -202,12 +199,12 @@ def run_improve(
 def cmd_init(args: argparse.Namespace) -> None:
     dev_root = init_skill_dev(args.name, Path(args.workspace))
     print(f"Initialized skill dev workspace: {dev_root}")
-    print(f"  - versions/   : 保存各版本 SKILL.md")
-    print(f"  - evals/      : 测试用例 (已生成示例)")
-    print(f"  - iterations/ : 测试运行输出")
-    print(f"  - benchmarks/ : 聚合报告")
-    print(f"\nNext steps:")
-    print(f"  1. Write your SKILL.md in the skill directory")
+    print("  - versions/   : 保存各版本 SKILL.md")
+    print("  - evals/      : 测试用例 (已生成示例)")
+    print("  - iterations/ : 测试运行输出")
+    print("  - benchmarks/ : 聚合报告")
+    print("\nNext steps:")
+    print("  1. Write your SKILL.md in the skill directory")
     print(f"  2. Edit {dev_root}/evals/trigger-eval.json with realistic test queries")
     print(
         f"  3. Run: python3 scripts/skill_dev.py test trigger --skill-path <path> --workspace {args.workspace}"
@@ -217,7 +214,7 @@ def cmd_init(args: argparse.Namespace) -> None:
 def cmd_version(args: argparse.Namespace) -> None:
     dev_root = get_dev_root(Path(args.workspace), args.name)
     if not dev_root.exists():
-        print(f"Error: Skill dev workspace not found. Run init first.", file=sys.stderr)
+        print("Error: Skill dev workspace not found. Run init first.", file=sys.stderr)
         sys.exit(1)
 
     if args.version_action == "save":

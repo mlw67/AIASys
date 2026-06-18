@@ -2,12 +2,14 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
   CircleAlert,
-  Database,
+  Code2,
   Trash2,
   Eye,
   Link2,
   Loader2,
+  MapPin,
   MessageSquareQuote,
   Network,
   Pencil,
@@ -35,6 +37,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { createGraphragApi } from "@/lib/api/graphrag";
 import { SqlQueryPanel } from "@/components/database/SqlQueryPanel";
 import type {
+  GraphLayoutPosition,
+  GraphLlmStatus,
   GraphQueryResponse,
   GraphRawQueryResponse,
   GraphStatistics,
@@ -46,6 +50,7 @@ import type {
 } from "@/types/graphrag";
 import { getText } from "./ResourcePreviewShared";
 import { CanvasActionMenu } from "@/components/workspace/CanvasActionMenu";
+import type { PixiExplorerHandle } from "@/components/KnowledgeGraphDialog/PixiExplorer";
 
 const LazyPixiExplorer = lazy(() =>
   import("@/components/KnowledgeGraphDialog/PixiExplorer").then((module) => ({
@@ -141,6 +146,28 @@ export function GraphPreviewPanel({
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // LLM 状态检测（文档上传需要 LLM 支持抽取实体）
+  const [llmStatus, setLlmStatus] = useState<GraphLlmStatus | null>(null);
+
+  // 布局持久化
+  const pixiExplorerRef = useRef<PixiExplorerHandle | null>(null);
+  const [savedLayoutPositions, setSavedLayoutPositions] =
+    useState<Record<string, GraphLayoutPosition> | null>(null);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [layoutSaveMessage, setLayoutSaveMessage] = useState<string | null>(null);
+
+  // 查询参数（持久化到 localStorage）
+  const [queryTopK, setQueryTopK] = useState<number>(() => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("kg-query-top-k") : null;
+    const parsed = stored ? Number.parseInt(stored, 10) : NaN;
+    return Number.isFinite(parsed) ? parsed : 5;
+  });
+  const [queryDepth, setQueryDepth] = useState<number>(() => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("kg-query-depth") : null;
+    const parsed = stored ? Number.parseInt(stored, 10) : NaN;
+    return Number.isFinite(parsed) ? parsed : 1;
+  });
+
   // 原始数据 Tab 状态
   const [graphTables, setGraphTables] = useState<GraphTableInfo[]>([]);
   const [loadingGraphTables, setLoadingGraphTables] = useState(false);
@@ -163,6 +190,7 @@ export function GraphPreviewPanel({
 
   const dbPath = getText(node.meta?.db_path);
   const hasDataView = Boolean(dbPath);
+  const llmAvailable = llmStatus?.status === "available";
 
   const selectedGraphNode = useMemo<GraphVisualizationNode | null>(() => {
     if (!selectedNodeId || !visualization) {
@@ -294,6 +322,7 @@ export function GraphPreviewPanel({
       });
       const response = await graphApi.getVisualization(120, 0, false);
       setVisualization(response);
+      setSavedLayoutPositions(response.layout_positions ?? null);
       setSelectedNodeId(null);
     } catch (error) {
       setVisualization(null);
@@ -831,8 +860,8 @@ export function GraphPreviewPanel({
       });
       const response = await graphApi.query({
         question: trimmed,
-        top_k: 5,
-        depth: 1,
+        top_k: queryTopK,
+        depth: queryDepth,
       });
       setQueryResult(response);
     } catch (error) {
@@ -841,7 +870,7 @@ export function GraphPreviewPanel({
     } finally {
       setIsQuerying(false);
     }
-  }, [isQuerying, kgId, question, dbPath, node.meta?.workspace_id]);
+  }, [isQuerying, kgId, question, dbPath, node.meta?.workspace_id, queryTopK, queryDepth]);
 
   const handleUploadChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -867,6 +896,8 @@ export function GraphPreviewPanel({
             ? `已上传 ${selectedFiles[0].name}，实体和关系已抽取。`
             : `已上传 ${selectedFiles.length} 个文件，实体和关系已抽取。`,
         );
+        // 上传成功后自动刷新可视化，让用户立刻看到新抽取的节点
+        void handleLoadVisualization();
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : "上传失败");
       } finally {
@@ -874,17 +905,85 @@ export function GraphPreviewPanel({
         event.target.value = "";
       }
     },
-    [isUploading, kgId, node.meta?.workspace_id, dbPath],
+    [isUploading, kgId, node.meta?.workspace_id, dbPath, handleLoadVisualization],
   );
 
-  const tabs: { id: GraphTab; label: string; icon: React.ReactNode }[] = [
+  const handleSaveLayout = useCallback(async () => {
+    if (!kgId || isSavingLayout) {
+      return;
+    }
+    const positions = pixiExplorerRef.current?.getNodePositions();
+    if (!positions || Object.keys(positions).length === 0) {
+      setLayoutSaveMessage("当前没有可保存的节点位置");
+      return;
+    }
+
+    setIsSavingLayout(true);
+    setLayoutSaveMessage(null);
+    try {
+      const graphApi = createGraphragApi({
+        workspaceId: getText(node.meta?.workspace_id) || undefined,
+        graphId: kgId,
+        dbPath: dbPath || undefined,
+      });
+      await graphApi.saveLayout(positions);
+      setSavedLayoutPositions(positions);
+      setLayoutSaveMessage(`已保存 ${Object.keys(positions).length} 个节点位置`);
+      window.setTimeout(() => setLayoutSaveMessage(null), 3000);
+    } catch (error) {
+      setLayoutSaveMessage(null);
+      setVisualizationError(
+        error instanceof Error ? error.message : "保存布局失败",
+      );
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }, [isSavingLayout, kgId, node.meta?.workspace_id, dbPath]);
+
+  const handleTriggerUpload = useCallback(() => {
+    uploadInputRef.current?.click();
+  }, []);
+
+  // LLM 状态检测：面板加载时检查 LLM 是否可用（文档上传需要 LLM 抽取实体）
+  useEffect(() => {
+    if (!kgId || llmStatus) {
+      return;
+    }
+    let cancelled = false;
+    const graphApi = createGraphragApi({
+      workspaceId: getText(node.meta?.workspace_id) || undefined,
+      graphId: kgId,
+      dbPath: dbPath || undefined,
+    });
+    graphApi
+      .getLlmStatus()
+      .then((status) => {
+        if (!cancelled) setLlmStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setLlmStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kgId, node.meta?.workspace_id, dbPath, llmStatus]);
+
+  // 持久化查询参数到 localStorage
+  useEffect(() => {
+    window.localStorage.setItem("kg-query-top-k", String(queryTopK));
+  }, [queryTopK]);
+  useEffect(() => {
+    window.localStorage.setItem("kg-query-depth", String(queryDepth));
+  }, [queryDepth]);
+
+  const tabs: { id: GraphTab; label: string; icon: React.ReactNode; weak?: boolean }[] = [
     { id: "visualize", label: "可视化", icon: <Eye className="h-3.5 w-3.5" /> },
     { id: "query", label: "查询", icon: <Search className="h-3.5 w-3.5" /> },
     { id: "settings", label: "设置", icon: <Settings className="h-3.5 w-3.5" /> },
   ];
 
   if (hasDataView) {
-    tabs.push({ id: "data", label: "原始数据", icon: <Database className="h-3.5 w-3.5" /> });
+    tabs.push({ id: "data", label: "原始数据", icon: <Code2 className="h-3 w-3" />, weak: true });
   }
 
   return (
@@ -939,6 +1038,14 @@ export function GraphPreviewPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <input
+        ref={uploadInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleUploadChange}
+        aria-label="上传知识图谱文档"
+      />
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -966,10 +1073,14 @@ export function GraphPreviewPanel({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 transition-colors ${
                 activeTab === tab.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? tab.weak
+                    ? "bg-muted text-foreground"
+                    : "bg-background text-foreground shadow-sm"
+                  : tab.weak
+                    ? "text-[11px] font-normal text-muted-foreground/70 hover:text-foreground"
+                    : "text-xs font-medium text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.icon}
@@ -983,6 +1094,12 @@ export function GraphPreviewPanel({
         {/* 可视化 Tab */}
         {activeTab === "visualize" ? (
           <div className="flex h-full min-h-0 flex-col gap-3">
+            {llmStatus && !llmAvailable ? (
+              <div className="flex items-start gap-2 rounded-md border border-amber-300/40 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-300">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>LLM 未配置，文档上传需要 LLM 支持实体抽取。</span>
+              </div>
+            ) : null}
             {isLoadingVisualization ? (
               <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1042,6 +1159,41 @@ export function GraphPreviewPanel({
                       <Plus className="mr-1.5 h-3 w-3" />
                       新建节点
                     </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleTriggerUpload}
+                      disabled={!kgId || isUploading}
+                      title="上传文档自动构建图谱"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Upload className="mr-1.5 h-3 w-3" />
+                      )}
+                      上传文档
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleSaveLayout()}
+                      disabled={!kgId || isSavingLayout || visualizationNodeCount === 0}
+                      title="保存当前节点位置布局"
+                    >
+                      {isSavingLayout ? (
+                        <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      ) : (
+                        <MapPin className="mr-1.5 h-3 w-3" />
+                      )}
+                      保存布局
+                    </Button>
+                    {layoutSaveMessage ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        {layoutSaveMessage}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="min-w-[160px] flex-1">
                     <div className="relative">
@@ -1076,20 +1228,51 @@ export function GraphPreviewPanel({
                       }
                     >
                       <LazyPixiExplorer
+                        ref={pixiExplorerRef}
                         data={visualization}
                         selectedNodeId={selectedNodeId}
                         searchQuery={searchQuery}
                         layoutMode="force"
                         onSelectNode={handleSelectVisualizationNode}
+                        initialPositions={savedLayoutPositions}
                       />
                     </Suspense>
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-sm text-muted-foreground">
                       <Network className="h-8 w-8 opacity-30" />
                       <div>当前图谱还没有可展示的节点。</div>
-                      <div className="text-xs text-muted-foreground">
-                        使用上方“新建节点”添加第一个实体。
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          onClick={handleTriggerUpload}
+                          disabled={!kgId || isUploading}
+                        >
+                          {isUploading ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Upload className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          上传文档自动构建
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={handleStartCreateNode}
+                          disabled={!kgId || isSavingNewNode}
+                        >
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          新建节点
+                        </Button>
                       </div>
+                      {llmStatus && !llmAvailable ? (
+                        <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                          <AlertTriangle className="h-3 w-3" />
+                          上传文档需要 LLM 支持
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -1705,17 +1888,39 @@ export function GraphPreviewPanel({
               <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-4 text-center text-sm text-muted-foreground">
                 <Network className="mb-3 h-8 w-8 opacity-30" />
                 <p>暂无图谱数据</p>
-                <p className="mt-1 text-xs">可以直接新建节点，或先刷新可视化数据。</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="mt-4"
-                  onClick={handleStartCreateNode}
-                  disabled={!kgId || isSavingNewNode}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  新建节点
-                </Button>
+                <p className="mt-1 text-xs">上传文档自动抽取实体，或手动新建第一个节点。</p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    onClick={handleTriggerUpload}
+                    disabled={!kgId || isUploading}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    上传文档自动构建
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleStartCreateNode}
+                    disabled={!kgId || isSavingNewNode}
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    新建节点
+                  </Button>
+                </div>
+                {llmStatus && !llmAvailable ? (
+                  <div className="mt-2 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    上传文档需要 LLM 支持
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -1758,6 +1963,36 @@ export function GraphPreviewPanel({
                   <Search className="h-3.5 w-3.5" />
                 )}
               </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <label className="flex items-center gap-1.5">
+                <span>Top K</span>
+                <select
+                  value={queryTopK}
+                  onChange={(e) => setQueryTopK(Number.parseInt(e.target.value, 10))}
+                  disabled={!kgId || isQuerying}
+                  className="h-6 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={20}>20</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span>深度</span>
+                <select
+                  value={queryDepth}
+                  onChange={(e) => setQueryDepth(Number.parseInt(e.target.value, 10))}
+                  disabled={!kgId || isQuerying}
+                  className="h-6 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                </select>
+              </label>
             </div>
 
             {queryError ? (
@@ -1929,14 +2164,6 @@ export function GraphPreviewPanel({
                 )}
                 上传文档
               </Button>
-              <input
-                ref={uploadInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleUploadChange}
-                aria-label="上传知识图谱文档"
-              />
               {uploadMessage ? (
                 <div className="mt-3 rounded-md border border-success/20 bg-success-container px-3 py-2 text-xs text-success">
                   {uploadMessage}

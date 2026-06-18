@@ -8,7 +8,6 @@ from pathlib import Path
 from app.services.export import SessionExportService
 from app.services.session import SessionManager
 
-
 TEST_USER_ID = "session_export_test_user"
 TEST_SESSION_ID = "session_export_test_session"
 

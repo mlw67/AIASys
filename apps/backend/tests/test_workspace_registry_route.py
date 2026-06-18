@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 
@@ -13,10 +13,10 @@ from app.models.task_profile import ExecutionPolicyMode, TaskExecutionPolicy
 from app.models.user import UserInfo
 from app.models.workspace import ExecutionResourceGroup, WorkspaceRuntimeBinding
 from app.services.connector import DatabaseConnectorService
-from app.services.session import SessionManager
-from app.services.workspace_registry import WorkspaceRegistryService
 from app.services.history.session_execution_journal import SessionExecutionJournal
+from app.services.session import SessionManager
 from app.services.session.config_projection import write_workspace_database_mount_data
+from app.services.workspace_registry import WorkspaceRegistryService
 
 
 def _build_user() -> UserInfo:

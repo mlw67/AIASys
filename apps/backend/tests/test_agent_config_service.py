@@ -5,23 +5,22 @@ Agent 配置服务测试
 """
 
 import json
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
 import yaml
-import app.services.agent_config.service as agent_config_service_module
 
-from app.services.agent_config import (
-    AgentConfigService,
-    AgentMode,
-    get_agent_config_service,
-)
-from app.services.agent_config.models import get_system_default_config_path
+import app.services.agent_config.service as agent_config_service_module
 from app.services.agent.system_presets import (
     build_system_config_from_preset,
     resolve_system_agent_preset_from_path,
 )
+from app.services.agent_config import (
+    AgentConfigService,
+    AgentMode,
+)
+from app.services.agent_config.models import get_system_default_config_path
 from app.services.workspace_registry import WorkspaceRegistryService
 
 

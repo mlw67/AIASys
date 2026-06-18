@@ -6,13 +6,13 @@ from types import SimpleNamespace
 import pytest
 
 from app.agents.tools import graphrag_tool, knowledge_tool
+from app.core import config as config_module
 from app.graphrag.models.entity import Entity
 from app.graphrag.models.relation import Relation
 from app.services.history import session_history_projection as history_projection
 from app.services.session.config_projection import (
     write_workspace_database_mount_data,
 )
-from app.core import config as config_module
 from app.services.task_resource_context import (
     build_task_resource_context,
     format_task_resource_context_for_prompt,

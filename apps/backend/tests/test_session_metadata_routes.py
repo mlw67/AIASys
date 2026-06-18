@@ -3,7 +3,6 @@
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 def _iter_leaf_routes(routes):

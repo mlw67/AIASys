@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 import pytest
-# ToolError/ToolOk removed, use result.is_error
 
+# ToolError/ToolOk removed, use result.is_error
 from app.agents.tools.notebook_session_tool import (
-    CreateSessionNotebookParams,
     CreateSessionNotebook,
-    ListSessionNotebooksParams,
+    CreateSessionNotebookParams,
     ListSessionNotebooks,
-    ReadNotebookOutputsParams,
+    ListSessionNotebooksParams,
     ReadNotebookOutputs,
+    ReadNotebookOutputsParams,
 )
 from app.services.history import current_session_root, current_workspace
 
