@@ -163,7 +163,9 @@ class SkillEnablementMixin:
             shutil.rmtree(as_system_path(str(tmp_path)))
 
         try:
-            shutil.copytree(as_system_path(str(target_dir.resolve())), as_system_path(str(tmp_path)))
+            shutil.copytree(
+                as_system_path(str(target_dir.resolve())), as_system_path(str(tmp_path))
+            )
         except Exception as exc:
             return SkillOperationResult(
                 success=False,
@@ -289,7 +291,9 @@ class SkillEnablementMixin:
             shutil.rmtree(as_system_path(str(tmp_path)))
 
         try:
-            shutil.copytree(as_system_path(str(target_dir.resolve())), as_system_path(str(tmp_path)))
+            shutil.copytree(
+                as_system_path(str(target_dir.resolve())), as_system_path(str(tmp_path))
+            )
         except Exception as exc:
             return SkillOperationResult(
                 success=False,
@@ -396,7 +400,9 @@ class SkillEnablementMixin:
             shutil.rmtree(as_system_path(str(tmp_path)))
 
         try:
-            shutil.copytree(as_system_path(str(store_skill_dir.resolve())), as_system_path(str(tmp_path)))
+            shutil.copytree(
+                as_system_path(str(store_skill_dir.resolve())), as_system_path(str(tmp_path))
+            )
         except Exception as exc:
             return SkillOperationResult(
                 success=False,

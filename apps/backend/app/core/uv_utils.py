@@ -13,22 +13,19 @@ from app.core.subprocess_utils import subprocess_kwargs
 
 # 只允许 HTTPS URL 中的安全字符，拒绝可能破坏 shell 单引号包裹的字符
 # 拒绝: 单引号(')、双引号(")、反引号(`)、反斜杠(\)、控制字符、空白字符
-_SAFE_URL_RE = re.compile(
-    r"^https://[a-zA-Z0-9._~:/?#\[\]@!$&()*+,;=%-]+$"
-)
+_SAFE_URL_RE = re.compile(r"^https://[a-zA-Z0-9._~:/?#\[\]@!$&()*+,;=%-]+$")
 
 
 def _validate_installer_url(url: str) -> None:
     """验证 installer mirror URL 不含 shell 注入风险字符。"""
     if not _SAFE_URL_RE.match(url):
-        raise ValueError(
-            f"Installer mirror URL 包含不允许的字符: {url!r}"
-        )
+        raise ValueError(f"Installer mirror URL 包含不允许的字符: {url!r}")
 
 
 def _vendor_platform_dir() -> str:
     """根据当前平台返回 vendor 下的子目录名。"""
     import platform
+
     system = platform.system().lower()
     machine = platform.machine().lower()
     if system == "windows" or os.name == "nt":
@@ -41,6 +38,7 @@ def _vendor_platform_dir() -> str:
 def _find_vendor_uv() -> str | None:
     """扫描 RUNTIME_ROOT/vendor/uv/<platform>/ 目录查找内置 uv。"""
     from app.core.config import RUNTIME_ROOT
+
     candidates = [
         RUNTIME_ROOT / "vendor" / "uv" / _vendor_platform_dir() / "uv.exe",
         RUNTIME_ROOT / "vendor" / "uv" / _vendor_platform_dir() / "uv",
@@ -94,6 +92,7 @@ def get_uv_version(path: str) -> str | None:
         )
         if completed.returncode == 0:
             from app.core.encoding_utils import smart_decode
+
             raw = smart_decode(completed.stdout).strip() if completed.stdout else ""
             match = re.search(r"uv\s+(\d+\.\d+\.\d+)", raw)
             if match:
@@ -158,6 +157,7 @@ def install_uv(
         return False, None, None, f"安装命令执行失败: {exc}"
 
     from app.core.encoding_utils import smart_decode
+
     stdout = smart_decode(completed.stdout).strip() if completed.stdout else ""
     stderr = smart_decode(completed.stderr).strip() if completed.stderr else ""
 

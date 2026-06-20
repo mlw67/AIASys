@@ -683,7 +683,9 @@ class SessionManager(StatusMixin, HistoryMixin, FileSnapshotMixin):
             if display_history_path.exists():
                 shutil.copy2(
                     as_system_path(str(display_history_path)),
-                    as_system_path(str(archive_dir / f"{archive_token}-{DISPLAY_HISTORY_FILE_NAME}")),
+                    as_system_path(
+                        str(archive_dir / f"{archive_token}-{DISPLAY_HISTORY_FILE_NAME}")
+                    ),
                 )
                 display_history_path.write_text("", encoding="utf-8")
 

@@ -379,7 +379,9 @@ class RuntimeStorageSettingsService:
             shutil.rmtree(as_system_path(str(temp_target)))
 
         if source.exists():
-            shutil.copytree(as_system_path(str(source)), as_system_path(str(temp_target)), symlinks=True)
+            shutil.copytree(
+                as_system_path(str(source)), as_system_path(str(temp_target)), symlinks=True
+            )
         else:
             temp_target.mkdir(parents=True, exist_ok=True)
 

@@ -117,9 +117,6 @@ def _find_bundled_fnm() -> str | None:
     return None
 
 
-
-
-
 def _busybox_default_path() -> Path:
     return _OPTIONAL_TOOLS_DIR / "busybox-w32" / "busybox.exe"
 

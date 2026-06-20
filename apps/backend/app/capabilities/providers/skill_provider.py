@@ -104,7 +104,9 @@ class SkillProvider(CapabilityProvider):
 
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(as_system_path(str(source_dir.resolve())), as_system_path(str(tmp_path)))
+            shutil.copytree(
+                as_system_path(str(source_dir.resolve())), as_system_path(str(tmp_path))
+            )
             if config:
                 self._write_skill_config(cap_id, tmp_path, config)
             else:

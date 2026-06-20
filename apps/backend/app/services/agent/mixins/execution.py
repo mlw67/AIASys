@@ -1471,7 +1471,7 @@ class ExecutionMixin:
                                             _bg_reasoning.append(_bg_event.get("think", ""))
                                         await _bg_queue.put(_bg_event)
                                         for _ev in _drain_monitor_queue(monitor_queue):
-                                                await _bg_queue.put(_ev)
+                                            await _bg_queue.put(_ev)
                                         if _bg_event.get("type") == "tool_result":
                                             _bg_lc = _project_task_result_lifecycle_event(_bg_event)
                                             if _bg_lc:
@@ -1822,7 +1822,10 @@ class ExecutionMixin:
                                 lifecycle_event=lifecycle_event,
                                 origin="execute_stream",
                             )
-                        logger.error(f"执行失败: user={user_id}, session={session_id}, error={e}", exc_info=True)
+                        logger.error(
+                            f"执行失败: user={user_id}, session={session_id}, error={e}",
+                            exc_info=True,
+                        )
                         yield {"type": "error", "message": user_facing_error}
 
                 finally:

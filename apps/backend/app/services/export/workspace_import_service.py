@@ -60,7 +60,9 @@ class WorkspaceImportService:
                 meta_path = candidate / ".aiasys" / "workspace" / "workspace.json"
                 if os.path.exists(as_system_path(meta_path)):
                     try:
-                        data = json.loads(Path(as_system_path(meta_path)).read_text(encoding="utf-8"))
+                        data = json.loads(
+                            Path(as_system_path(meta_path)).read_text(encoding="utf-8")
+                        )
                         existing_titles.add(str(data.get("title") or ""))
                     except Exception:
                         pass

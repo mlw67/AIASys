@@ -146,7 +146,7 @@ def _read_file_database_schema(file_path: Path) -> FileDatabaseSchemaResponse:
                     "SELECT column_name, data_type FROM information_schema.columns "
                     "WHERE table_name = ? AND table_schema = 'main' "
                     "ORDER BY ordinal_position",
-                    (table_name,)
+                    (table_name,),
                 ).fetchall()
                 columns = [FileDatabaseColumnInfo(name=row[0], type=row[1]) for row in result]
                 tables.append(FileDatabaseTableInfo(name=table_name, columns=columns))

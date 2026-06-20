@@ -161,7 +161,9 @@ def compare_files(
                         change["content"] = content
                         change["has_content"] = True
                 except Exception:
-                    logger.debug("Failed to read text file %s for diff", path, exc_info=True)  # 读取失败则不带内容
+                    logger.debug(
+                        "Failed to read text file %s for diff", path, exc_info=True
+                    )  # 读取失败则不带内容
 
             changes.append(change)
 

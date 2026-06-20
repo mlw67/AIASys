@@ -537,16 +537,19 @@ async def interrupt_notebook_runtime(
     async def _do_interrupt(*, workspace_root: str, session_root: str):
         box = LocalIPythonBox()
         user_identity = box._resolve_user_id()
-        return LocalIPythonBox.interrupt_kernel(
-            session_id, request.notebook_path, user_identity
-        )
+        return LocalIPythonBox.interrupt_kernel(session_id, request.notebook_path, user_identity)
 
     return await _execute_runtime_control(
-        user_id, session_id, request, current_user,
+        user_id,
+        session_id,
+        request,
+        current_user,
         action="interrupt",
         execute_fn=_do_interrupt,
         build_status=lambda r: "success" if r else "noop",
-        build_detail=lambda r: "已发送 notebook 中断信号。" if r else "当前没有活跃 notebook kernel，可跳过中断。",
+        build_detail=lambda r: (
+            "已发送 notebook 中断信号。" if r else "当前没有活跃 notebook kernel，可跳过中断。"
+        ),
     )
 
 
@@ -574,11 +577,16 @@ async def restart_notebook_runtime(
         )
 
     return await _execute_runtime_control(
-        user_id, session_id, request, current_user,
+        user_id,
+        session_id,
+        request,
+        current_user,
         action="restart",
         execute_fn=_do_restart,
         build_status=lambda r: "success",
-        build_detail=lambda r: "已重启 notebook kernel。" if r else "当前没有旧 kernel，已创建新的 notebook kernel。",
+        build_detail=lambda r: (
+            "已重启 notebook kernel。" if r else "当前没有旧 kernel，已创建新的 notebook kernel。"
+        ),
     )
 
 
@@ -592,16 +600,19 @@ async def stop_notebook_runtime(
     async def _do_stop(*, workspace_root: str, session_root: str):
         box = LocalIPythonBox()
         user_identity = box._resolve_user_id()
-        return await LocalIPythonBox.stop_kernel(
-            session_id, request.notebook_path, user_identity
-        )
+        return await LocalIPythonBox.stop_kernel(session_id, request.notebook_path, user_identity)
 
     return await _execute_runtime_control(
-        user_id, session_id, request, current_user,
+        user_id,
+        session_id,
+        request,
+        current_user,
         action="stop",
         execute_fn=_do_stop,
         build_status=lambda r: "success" if r else "noop",
-        build_detail=lambda r: "已停止 notebook kernel。" if r else "当前没有活跃 notebook kernel，可跳过停止。",
+        build_detail=lambda r: (
+            "已停止 notebook kernel。" if r else "当前没有活跃 notebook kernel，可跳过停止。"
+        ),
     )
 
 

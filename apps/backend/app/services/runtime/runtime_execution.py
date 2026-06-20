@@ -303,6 +303,7 @@ def build_runtime_shell_env(
     # 确保 uv 在 PATH 中：子进程默认可能看不到 uv（桌面版 AIASYS_BUNDLED_UV_PATH、
     # vendor 内置、或用户安装的 uv）。统一走 find_uv_binary() 三层检测链。
     from app.core.uv_utils import find_uv_binary
+
     uv_bin = find_uv_binary()
     if uv_bin:
         uv_dir = str(Path(uv_bin).parent)

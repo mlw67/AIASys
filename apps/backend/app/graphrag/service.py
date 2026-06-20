@@ -465,7 +465,9 @@ class GraphRAGService:
         if level not in communities:
             return []
 
-        return detector.generate_community_summary(await self.graph_store.get_graph(), communities[level])
+        return detector.generate_community_summary(
+            await self.graph_store.get_graph(), communities[level]
+        )
 
     async def get_visualization(
         self,

@@ -809,8 +809,7 @@ class SimpleCompaction:
         # 如果调用方提供了自定义压缩指令，把原文附在摘要末尾，确保关键 token
         # 在摘要消息中一定存在，不会被 LLM 的总结风格遗漏。
         summary_content = (
-            "Previous context has been compacted. "
-            "Here is the compaction output:\n\n" + summary_text
+            "Previous context has been compacted. Here is the compaction output:\n\n" + summary_text
         )
         if custom_instruction and custom_instruction.strip():
             summary_content += (

@@ -33,6 +33,7 @@ def _log_task_exception(task: asyncio.Task) -> None:
         if exc is not None:
             logger.error("PTY 后台任务异常: %s", exc, exc_info=True)
 
+
 IS_POSIX = os.name == "posix"
 IS_WINDOWS = os.name == "nt"
 

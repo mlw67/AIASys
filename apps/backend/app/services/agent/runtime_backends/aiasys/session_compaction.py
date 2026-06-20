@@ -107,9 +107,7 @@ class SessionCompactionMixin:
 
         # Tier 2+3: LLM-based compaction
         # 手动触发强制压缩时，把保留消息数降到 0，确保即使只有 1-2 轮对话也能产生摘要。
-        max_preserved_messages = (
-            0 if force else loop_control.max_preserved_messages
-        )
+        max_preserved_messages = 0 if force else loop_control.max_preserved_messages
         compactor = SimpleCompaction(
             max_preserved_messages=max_preserved_messages,
             max_preserved_tokens=loop_control.max_preserved_tokens,

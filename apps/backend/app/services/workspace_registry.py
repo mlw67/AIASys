@@ -417,7 +417,9 @@ class WorkspaceRegistryService:
         user_dir = self._get_user_dir(user_id)
         workspaces: list[WorkspaceDetailResponse] = []
         for candidate in user_dir.iterdir():
-            if not os.path.isdir(as_system_path(candidate)) or os.path.islink(as_system_path(candidate)):
+            if not os.path.isdir(as_system_path(candidate)) or os.path.islink(
+                as_system_path(candidate)
+            ):
                 continue
             meta_path = self._get_workspace_meta_path(candidate)
             if not os.path.exists(as_system_path(meta_path)):
@@ -1270,9 +1272,7 @@ class WorkspaceRegistryService:
 
                 db.commit()
         except Exception:
-            logger.warning(
-                "删除工作区 %s 时 ORM 记录清理失败", workspace_id, exc_info=True
-            )
+            logger.warning("删除工作区 %s 时 ORM 记录清理失败", workspace_id, exc_info=True)
 
         # 清理工作区注册的 Docker 容器，避免删除目录后容器仍运行且挂载路径失效
         self._cleanup_workspace_containers(user_id, workspace_id)
@@ -1546,7 +1546,9 @@ class WorkspaceRegistryService:
         candidates: list[OrphanConversationCleanupCandidate] = []
 
         for candidate in user_dir.iterdir():
-            if os.path.islink(as_system_path(candidate)) or not os.path.isdir(as_system_path(candidate)):
+            if os.path.islink(as_system_path(candidate)) or not os.path.isdir(
+                as_system_path(candidate)
+            ):
                 continue
             if self._is_reserved_user_dir(candidate):
                 continue
@@ -1586,7 +1588,9 @@ class WorkspaceRegistryService:
         if not dry_run:
             for item in candidates:
                 target = self._get_user_dir(user_id) / item.session_id
-                if os.path.islink(as_system_path(target)) or not os.path.isdir(as_system_path(target)):
+                if os.path.islink(as_system_path(target)) or not os.path.isdir(
+                    as_system_path(target)
+                ):
                     continue
                 if os.path.exists(as_system_path(target)):
                     shutil.rmtree(as_system_path(target))

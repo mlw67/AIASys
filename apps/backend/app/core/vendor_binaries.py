@@ -142,6 +142,7 @@ def ensure_vendor_binaries() -> None:
         )
         if result.returncode != 0:
             from app.core.encoding_utils import smart_decode
+
             stderr = smart_decode(result.stderr) if result.stderr else ""
             stdout = smart_decode(result.stdout) if result.stdout else ""
             logger.warning(

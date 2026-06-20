@@ -276,7 +276,10 @@ async def install_uv_endpoint(
         if cfg.uv.installer_mirror:
             installer_mirror = cfg.uv.installer_mirror
     except Exception:
-        logger.warning("Failed to load AIASys config for user %s, using default installer mirror", current_user.user_id)
+        logger.warning(
+            "Failed to load AIASys config for user %s, using default installer mirror",
+            current_user.user_id,
+        )
 
     ok, path, version, message = install_uv(installer_mirror=installer_mirror)
     if not ok:

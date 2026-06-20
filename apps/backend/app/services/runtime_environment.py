@@ -536,13 +536,20 @@ class RuntimeEnvironmentService:
         python_file = env_dir / ".python-version"
         venv_dir = env_dir / ".venv"
         python_bin = _python_bin_for_venv(venv_dir)
-        packages = self._list_uv_packages(python_bin) if os.path.exists(as_system_path(python_bin)) else []
+        packages = (
+            self._list_uv_packages(python_bin) if os.path.exists(as_system_path(python_bin)) else []
+        )
         env.material_path = str(env_dir)
         env.python_version = self._read_python_version(env_dir) or env.python_version
         env.python_executable = str(python_bin)
         env.package_count = len(packages)
         env.packages = packages
-        env.status = "ready" if os.path.exists(as_system_path(pyproject)) and os.path.exists(as_system_path(python_bin)) else "registered"
+        env.status = (
+            "ready"
+            if os.path.exists(as_system_path(pyproject))
+            and os.path.exists(as_system_path(python_bin))
+            else "registered"
+        )
         env.metadata = {
             **env.metadata,
             "pyproject_exists": os.path.exists(as_system_path(pyproject)),

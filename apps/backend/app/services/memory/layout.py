@@ -53,5 +53,7 @@ def ensure_memory_layout(root: Path) -> MemoryLayout:
     # raw_memories 是内部镜像，可跳过安全扫描路径
     if not os.path.exists(as_system_path(layout.raw_memories)):
         logger.info("重建 raw memories 占位文件: %s", layout.raw_memories)
-        Path(as_system_path(layout.raw_memories)).write_text("# Raw Memories\n\nNo raw memories yet.\n", encoding="utf-8")
+        Path(as_system_path(layout.raw_memories)).write_text(
+            "# Raw Memories\n\nNo raw memories yet.\n", encoding="utf-8"
+        )
     return layout

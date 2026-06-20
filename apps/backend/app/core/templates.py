@@ -835,7 +835,9 @@ def export_workspace_as_template(
     # 复制 workspace_memory.md
     memory_src = workspace_dir / ".aiasys" / "memory" / "workspace_memory.md"
     if memory_src.exists():
-        shutil.copy2(as_system_path(str(memory_src)), as_system_path(str(target_dir / "workspace_memory.md")))
+        shutil.copy2(
+            as_system_path(str(memory_src)), as_system_path(str(target_dir / "workspace_memory.md"))
+        )
 
     return WorkspaceTemplate(
         template_id=resolved_id,

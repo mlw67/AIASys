@@ -378,7 +378,9 @@ async def upload_document(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"File upload processing failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"File upload processing failed: {str(e)}"
+        ) from e
 
 
 @router.post("/query", response_model=QueryResponse)

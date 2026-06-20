@@ -34,7 +34,9 @@ class CreateAutoTaskRequest(BaseModel):
     """创建自动任务请求"""
 
     prompt: str = Field(..., min_length=1, description="任务提示词")
-    trigger_type: str = Field(default="interval", description="触发类型: continuous / interval / cron / once")
+    trigger_type: str = Field(
+        default="interval", description="触发类型: continuous / interval / cron / once"
+    )
     trigger_value: str = Field(default="", description="触发值（cron 表达式或间隔秒数）")
     title: str = Field(default="", description="任务标题")
     status: str = Field(default="active", description="任务状态: active / paused / disabled")

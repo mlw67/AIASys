@@ -133,6 +133,7 @@ def export_markdown_file(source_path: Path, output_format: str) -> ExportedArtif
         )
         if result.returncode != 0:
             from app.core.encoding_utils import smart_decode
+
             stderr = smart_decode(result.stderr).strip() if result.stderr else ""
             stdout = smart_decode(result.stdout).strip() if result.stdout else ""
             detail = stderr or stdout or "Pandoc 未返回具体错误"

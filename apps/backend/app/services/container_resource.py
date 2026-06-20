@@ -33,6 +33,7 @@ def _shell_split(command: str | list[str] | None) -> list[str] | None:
         return command
     if os.name == "nt":
         import shlex
+
         return shlex.split(command, posix=False)
     import shlex
 

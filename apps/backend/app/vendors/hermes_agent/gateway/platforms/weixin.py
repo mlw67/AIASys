@@ -1248,11 +1248,13 @@ class WeixinAdapter(BasePlatformAdapter):
                 for message in response.get("msgs") or []:
                     task = asyncio.create_task(self._process_message_safe(message))
                     task.add_done_callback(
-                        lambda t: logger.error(
-                            "weixin: message processing failed", exc_info=t.exception()
+                        lambda t: (
+                            logger.error(
+                                "weixin: message processing failed", exc_info=t.exception()
+                            )
+                            if t.exception()
+                            else None
                         )
-                        if t.exception()
-                        else None
                     )
             except asyncio.CancelledError:
                 break
@@ -1316,11 +1318,11 @@ class WeixinAdapter(BasePlatformAdapter):
             self._maybe_fetch_typing_ticket(sender_id, context_token or None)
         )
         task.add_done_callback(
-            lambda t: logger.error(
-                "weixin: typing ticket fetch failed", exc_info=t.exception()
+            lambda t: (
+                logger.error("weixin: typing ticket fetch failed", exc_info=t.exception())
+                if t.exception()
+                else None
             )
-            if t.exception()
-            else None
         )
 
         item_list = message.get("item_list") or []
