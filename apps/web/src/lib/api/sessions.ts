@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from "@/config/api";
-import { apiRequest } from "@/lib/api/httpClient";
+import { apiFetch, apiRequest } from "@/lib/api/httpClient";
 import type {
   SessionHistoryMessage,
   SessionStatusInfo,
@@ -48,12 +48,8 @@ export async function exportConversation(
   userId: string,
   sessionId: string,
 ): Promise<Blob> {
-  const response = await fetch(
+  const response = await apiFetch(
     API_ENDPOINTS.SESSION_EXPORT(userId, sessionId) + "?scope=conversation",
-    {
-      method: "GET",
-      credentials: "include",
-    },
   );
   if (!response.ok) {
     const detail = await response.text().catch(() => "导出失败");
@@ -69,12 +65,11 @@ export async function importConversation(
 ): Promise<WorkspaceConversationSummary> {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await fetch(
+  const response = await apiFetch(
     API_ENDPOINTS.SESSION_IMPORT(userId) + `?workspace_id=${encodeURIComponent(workspaceId)}`,
     {
       method: "POST",
       body: formData,
-      credentials: "include",
     },
   );
   if (!response.ok) {

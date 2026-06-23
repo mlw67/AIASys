@@ -162,6 +162,14 @@ export const API_ENDPOINTS = {
     `/api/sessions/${userId}/${sessionId}/rewrite-from-message`,
   SESSION_EXECUTION_RECORDS: (userId: string, sessionId: string) =>
     `/api/sessions/${userId}/${sessionId}/execution-records`,
+  SESSION_EXECUTION_TREE: (userId: string, sessionId: string) =>
+    `/api/sessions/${userId}/${sessionId}/execution-tree`,
+  SESSION_SUBAGENT: (userId: string, sessionId: string, agentId: string) =>
+    `/api/sessions/${userId}/${sessionId}/subagents/${agentId}`,
+  SESSION_SUBAGENT_STOP: (userId: string, sessionId: string, agentId: string) =>
+    `/api/sessions/${userId}/${sessionId}/subagents/${agentId}/stop`,
+  SESSION_SUBAGENT_RETRY: (userId: string, sessionId: string, agentId: string) =>
+    `/api/sessions/${userId}/${sessionId}/subagents/${agentId}/retry`,
   SESSION_COMPACT: (userId: string, sessionId: string) =>
     `/api/sessions/${userId}/${sessionId}/compact`,
   SESSION_UPDATE_TITLE: (userId: string, sessionId: string) =>

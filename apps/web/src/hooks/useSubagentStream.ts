@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { API_ENDPOINTS } from "@/config/api";
 import { apiRequest } from "@/lib/api/httpClient";
 import {
   closeSubagent,
@@ -102,7 +103,7 @@ export function useSubagentStream(
     setError(null);
     try {
       const data = await apiRequest<SubAgentDetail>(
-        `/api/sessions/${userId}/${sessionId}/subagents/${agentId}`,
+        API_ENDPOINTS.SESSION_SUBAGENT(userId, sessionId, agentId),
       );
       setDetail(data);
       // wire.jsonl 中 metadata 占第 0 行（event_id=1），detail.events 已跳过 metadata。

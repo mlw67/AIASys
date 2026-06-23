@@ -11,27 +11,14 @@ import type {
   GlobalMonitorListResponse,
   GlobalMonitorSummaryResponse,
 } from "@/types/monitors";
-
-const API_BASE = "/api/sessions";
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => "unknown error");
-    throw new Error(`HTTP ${res.status}: ${err}`);
-  }
-  return res.json() as Promise<T>;
-}
+import { apiRequest } from "@/lib/api/httpClient";
 
 export function listSessionMonitors(
   userId: string,
   sessionId: string,
 ): Promise<MonitorListResponse> {
-  return fetchJson<MonitorListResponse>(
-    `${API_BASE}/${userId}/${sessionId}/monitors`,
+  return apiRequest<MonitorListResponse>(
+    `/api/sessions/${userId}/${sessionId}/monitors`,
   );
 }
 
@@ -40,8 +27,8 @@ export function getMonitorDetail(
   sessionId: string,
   monitorId: string,
 ): Promise<MonitorDetailResponse> {
-  return fetchJson<MonitorDetailResponse>(
-    `${API_BASE}/${userId}/${sessionId}/monitors/${monitorId}`,
+  return apiRequest<MonitorDetailResponse>(
+    `/api/sessions/${userId}/${sessionId}/monitors/${monitorId}`,
   );
 }
 
@@ -51,8 +38,8 @@ export function getMonitorSegments(
   monitorId: string,
   sinceIndex: number,
 ): Promise<MonitorSegmentsResponse> {
-  return fetchJson<MonitorSegmentsResponse>(
-    `${API_BASE}/${userId}/${sessionId}/monitors/${monitorId}/segments?since_index=${sinceIndex}`,
+  return apiRequest<MonitorSegmentsResponse>(
+    `/api/sessions/${userId}/${sessionId}/monitors/${monitorId}/segments?since_index=${sinceIndex}`,
   );
 }
 
@@ -61,8 +48,8 @@ export function killMonitor(
   sessionId: string,
   monitorId: string,
 ): Promise<{ success: boolean; monitor_id: string }> {
-  return fetchJson<{ success: boolean; monitor_id: string }>(
-    `${API_BASE}/${userId}/${sessionId}/monitors/${monitorId}/kill`,
+  return apiRequest<{ success: boolean; monitor_id: string }>(
+    `/api/sessions/${userId}/${sessionId}/monitors/${monitorId}/kill`,
     { method: "POST" },
   );
 }
@@ -72,8 +59,8 @@ export function spawnMonitor(
   sessionId: string,
   req: MonitorSpawnRequest,
 ): Promise<MonitorSpawnResponse> {
-  return fetchJson<MonitorSpawnResponse>(
-    `${API_BASE}/${userId}/${sessionId}/monitors/spawn`,
+  return apiRequest<MonitorSpawnResponse>(
+    `/api/sessions/${userId}/${sessionId}/monitors/spawn`,
     {
       method: "POST",
       body: JSON.stringify(req),
@@ -86,8 +73,8 @@ export function deleteMonitor(
   sessionId: string,
   monitorId: string,
 ): Promise<{ success: boolean; monitor_id: string }> {
-  return fetchJson<{ success: boolean; monitor_id: string }>(
-    `${API_BASE}/${userId}/${sessionId}/monitors/${monitorId}`,
+  return apiRequest<{ success: boolean; monitor_id: string }>(
+    `/api/sessions/${userId}/${sessionId}/monitors/${monitorId}`,
     { method: "DELETE" },
   );
 }
@@ -98,8 +85,8 @@ export function updateMonitorMode(
   monitorId: string,
   mode: "notify" | "silent",
 ): Promise<{ success: boolean; monitor_id: string; mode: string }> {
-  return fetchJson<{ success: boolean; monitor_id: string; mode: string }>(
-    `${API_BASE}/${userId}/${sessionId}/monitors/${monitorId}/mode?mode=${mode}`,
+  return apiRequest<{ success: boolean; monitor_id: string; mode: string }>(
+    `/api/sessions/${userId}/${sessionId}/monitors/${monitorId}/mode?mode=${mode}`,
     { method: "PUT" },
   );
 }
@@ -108,9 +95,9 @@ export function listGlobalMonitors(
   status?: string,
 ): Promise<GlobalMonitorListResponse> {
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  return fetchJson<GlobalMonitorListResponse>(`${API_BASE}/monitors${query}`);
+  return apiRequest<GlobalMonitorListResponse>(`/api/sessions/monitors${query}`);
 }
 
 export function getGlobalMonitorSummary(): Promise<GlobalMonitorSummaryResponse> {
-  return fetchJson<GlobalMonitorSummaryResponse>(`${API_BASE}/monitors/summary`);
+  return apiRequest<GlobalMonitorSummaryResponse>(`/api/sessions/monitors/summary`);
 }

@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { API_ENDPOINTS } from "@/config/api";
 import { apiRequest } from "@/lib/api/httpClient";
 import { eventBus, EVENTS } from "@/lib/eventBus";
 import { getExecutionRecordSeed } from "@/lib/runtimeToolEvents";
@@ -352,7 +353,7 @@ export function useExecutionTree(
 
     try {
       const data = await apiRequest<ExecutionTree>(
-        `/api/sessions/${userId}/${sessionId}/execution-tree`,
+        API_ENDPOINTS.SESSION_EXECUTION_TREE(userId, sessionId),
       );
       const normalized = normalizeExecutionTree(data);
       // 流活跃期间，API 返回 idle 时保护乐观更新的 running 状态
@@ -380,7 +381,7 @@ export function useExecutionTree(
 
     try {
       const data = await apiRequest<{ records?: SessionExecutionRecord[] }>(
-        `/api/sessions/${userId}/${sessionId}/execution-records`,
+        API_ENDPOINTS.SESSION_EXECUTION_RECORDS(userId, sessionId),
       );
       codeRecordsLoadedRef.current = true;
       setCodeExecutionRecords((prev) => {
@@ -416,7 +417,7 @@ export function useExecutionTree(
 
     try {
       const data = await apiRequest<SubAgentDetail>(
-        `/api/sessions/${userId}/${sessionId}/subagents/${agentId}`,
+        API_ENDPOINTS.SESSION_SUBAGENT(userId, sessionId, agentId),
         { signal: abortController.signal },
       );
       // 如果请求过程中切换了选中的节点，丢弃旧响应
@@ -440,7 +441,7 @@ export function useExecutionTree(
 
     try {
       await apiRequest(
-        `/api/sessions/${userId}/${sessionId}/subagents/${agentId}/stop`,
+        API_ENDPOINTS.SESSION_SUBAGENT_STOP(userId, sessionId, agentId),
         { method: "POST" },
       );
       await Promise.all([
@@ -463,7 +464,7 @@ export function useExecutionTree(
 
     try {
       await apiRequest(
-        `/api/sessions/${userId}/${sessionId}/subagents/${agentId}/retry`,
+        API_ENDPOINTS.SESSION_SUBAGENT_RETRY(userId, sessionId, agentId),
         { method: "POST" },
       );
       await Promise.all([
