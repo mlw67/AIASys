@@ -604,6 +604,9 @@ class RuntimeEnvironmentService:
     def _run_uv(self, command: list[str], *, cwd: Path) -> RuntimeEnvCommandResult:
         env = dict(os.environ)
         env.setdefault("UV_CACHE_DIR", os.path.join(tempfile.gettempdir(), "uv-cache"))
+        # 禁止 Python 把当前工作目录加入 sys.path，避免工作区根目录下的源码文件夹
+        # shadow 已安装的包（如 numpy/pandas 源码目录）。
+        env.setdefault("PYTHONSAFEPATH", "1")
 
         # 确保 uv 可执行文件的目录在 PATH 中，避免桌面模式下后端 PATH 被截断
         from app.core.uv_utils import find_uv_binary

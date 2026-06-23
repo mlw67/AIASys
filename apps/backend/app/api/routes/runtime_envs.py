@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth import require_auth
@@ -86,7 +88,9 @@ async def ensure_workspace_uv_env(
 ):
     """创建或刷新工作区默认 UV 环境登记。"""
     try:
-        env, command_result = _service().ensure_uv_env(
+        # uv add/sync 可能耗时数分钟，必须在线程池中执行，避免阻塞 Uvicorn 事件循环
+        env, command_result = await asyncio.to_thread(
+            _service().ensure_uv_env,
             current_user.user_id,
             workspace_id,
             env_id=request.env_id,
@@ -161,7 +165,8 @@ async def install_workspace_uv_packages(
 ):
     """向工作区 UV 环境登记依赖包。"""
     try:
-        env, command_result = _service().install_workspace_packages(
+        env, command_result = await asyncio.to_thread(
+            _service().install_workspace_packages,
             current_user.user_id,
             workspace_id,
             env_id=env_id,
