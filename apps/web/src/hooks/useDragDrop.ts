@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 export interface UseDragDropResult {
   isDragging: boolean;
@@ -19,6 +19,7 @@ function hasDraggedFiles(dataTransfer: DataTransfer): boolean {
 
 export function useDragDrop(onDropCallback: (files: FileList) => void): UseDragDropResult {
   const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     if (!hasDraggedFiles(e.dataTransfer)) {
@@ -26,7 +27,10 @@ export function useDragDrop(onDropCallback: (files: FileList) => void): UseDragD
     }
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDragging(true);
+    }
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -35,32 +39,27 @@ export function useDragDrop(onDropCallback: (files: FileList) => void): UseDragD
     }
     e.preventDefault();
     e.stopPropagation();
-    if (!isDragging) {
-      setIsDragging(true);
-    }
-  }, [isDragging]);
+  }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    if (!isDragging) {
-      return;
-    }
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
-  }, [isDragging]);
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    if (!isDragging && e.dataTransfer.files.length === 0) {
-      return;
-    }
     e.preventDefault();
     e.stopPropagation();
+    dragCounterRef.current = 0;
     setIsDragging(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onDropCallback(e.dataTransfer.files);
     }
-  }, [onDropCallback, isDragging]);
+  }, [onDropCallback]);
 
   return {
     isDragging,
