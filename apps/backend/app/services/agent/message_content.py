@@ -473,7 +473,9 @@ def hydrate_message_images(
                     image_url = part.get("image_url")
                     if isinstance(image_url, dict):
                         url = image_url.get("url", "")
-                        if isinstance(url, str) and url.startswith("file://"):
+                        if isinstance(url, str) and (
+                            url.startswith("file://") or _is_workspace_reference(url)
+                        ):
                             source_path = part.get("source_path", url)
                             try:
                                 host_path = _resolve_hydratable_image_path(
@@ -529,6 +531,8 @@ def _resolve_hydratable_image_path(
         candidates.append(source_path)
     if url.startswith("file://"):
         candidates.append(unquote(url[len("file://") :]))
+    elif _is_workspace_reference(url):
+        candidates.append(url)
 
     seen: set[str] = set()
     for raw_candidate in candidates:
