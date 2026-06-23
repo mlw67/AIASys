@@ -157,6 +157,8 @@ class WorkspaceRegistryService:
         self.base_dir = Path(base_dir)
         os.makedirs(as_system_path(self.base_dir), exist_ok=True)
         self.session_manager = session_manager or SessionManager(self.base_dir)
+        # 保护 _write_json 中的 os.replace，避免 Windows 下并发写同一文件触发 PermissionError
+        self._meta_write_lock = threading.Lock()
 
     def _get_user_dir(self, user_id: str) -> Path:
         _ensure_valid_id(user_id, "user_id")
@@ -240,6 +242,7 @@ class WorkspaceRegistryService:
 
     def _write_json(self, path: Path, payload: Any) -> None:
         import tempfile
+        import time
 
         os.makedirs(as_system_path(path.parent), exist_ok=True)
         data = json.dumps(payload, indent=2, ensure_ascii=False)
@@ -247,7 +250,25 @@ class WorkspaceRegistryService:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(data)
-            os.replace(as_system_path(temp_path), as_system_path(path))
+            # Windows 下 os.replace 可能因文件被占用而失败：
+            # 1. create_workspace 中后台初始化线程会与 create_conversation 并发写 workspace.json
+            # 2. Windows 索引/杀毒软件可能短暂持有新创建文件
+            # 加锁 + 指数退避重试避免 PermissionError [WinError 5]。
+            with self._meta_write_lock:
+                last_error: Exception | None = None
+                for attempt in range(8):
+                    try:
+                        os.replace(as_system_path(temp_path), as_system_path(path))
+                        break
+                    except PermissionError as exc:
+                        last_error = exc
+                        if attempt == 7:
+                            raise
+                        # 指数退避：最多等约 1.275 秒
+                        time.sleep(0.015 * (2**attempt))
+                else:
+                    if last_error is not None:
+                        raise last_error
         except Exception:
             try:
                 os.unlink(as_system_path(temp_path))
