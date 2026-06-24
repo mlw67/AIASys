@@ -567,7 +567,10 @@ def _resolve_hydratable_image_path(
 
 def _is_workspace_reference(raw_path: str) -> bool:
     candidate = str(raw_path or "").strip().replace("\\", "/")
-    return candidate.startswith("workspace:/") or candidate.startswith("/workspace/")
+    if candidate.startswith("workspace:/") or candidate.startswith("/workspace/"):
+        return True
+    # LLM 有时只返回文件名（如 industrial_analysis_dashboard.png），兜底视为工作区文件
+    return bool(candidate) and "/" not in candidate and ":" not in candidate
 
 
 def split_data_url(value: str) -> tuple[str | None, str | None]:
@@ -612,10 +615,21 @@ def _pick_image_path(
     source_path: Any,
     image_url: Any,
 ) -> str | None:
-    if isinstance(source_path, str) and source_path.startswith("/workspace/"):
-        return source_path
-    if isinstance(image_url, str) and image_url.startswith("/workspace/"):
-        return image_url
+    candidate = None
+    if isinstance(source_path, str):
+        candidate = source_path
+    elif isinstance(image_url, str):
+        candidate = image_url
+    if not candidate:
+        return None
+    candidate = str(candidate).strip().replace("\\", "/")
+    if candidate.startswith("/workspace/"):
+        return candidate
+    if candidate.startswith("workspace:/"):
+        return candidate[len("workspace:") :]
+    # LLM 有时只返回文件名，兜底补全为 /workspace/{filename}
+    if "/" not in candidate and ":" not in candidate:
+        return f"/workspace/{candidate}"
     return None
 
 

@@ -64,7 +64,20 @@ function inferWorkspaceIdFromUrl(): string | undefined {
  * - global: /api/workspaces/{workspaceId}/global-workspace/download/{assetPath}
  */
 function resolveWorkspaceImage(src: string, sessionId?: string): string {
-  const resolved = parseWorkspaceImagePath(src);
+  let normalized = src?.replace(/^file:\/\//, "").trim() ?? "";
+
+  // LLM 可能只返回文件名（如 industrial_analysis_dashboard.png）。
+  // 如果看起来是纯文件名，兜底补全为 /workspace/{filename}。
+  const looksLikePlainFilename =
+    normalized.length > 0 &&
+    !normalized.includes("/") &&
+    !normalized.includes(":") &&
+    !normalized.startsWith("data:");
+  if (looksLikePlainFilename) {
+    normalized = `/workspace/${normalized}`;
+  }
+
+  const resolved = parseWorkspaceImagePath(normalized);
   if (!resolved) {
     return src ?? "";
   }

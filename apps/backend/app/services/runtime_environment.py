@@ -176,6 +176,37 @@ class RuntimeEnvironmentService:
         create_venv: bool = False,
         sync: bool = False,
     ) -> tuple[WorkspaceRuntimeEnv, RuntimeEnvCommandResult | None]:
+        """同步完成 UV 环境准备（创建项目 + 可选 sync）。"""
+        env = self.prepare_uv_env(
+            user_id,
+            workspace_id,
+            env_id=env_id,
+            display_name=display_name,
+            python_version=python_version,
+            packages=packages,
+        )
+        if create_venv or sync:
+            return self.sync_uv_env(user_id, workspace_id, env_id=env.env_id)
+        inspected = self._inspect_uv_env(
+            self._workspace_dir(user_id, workspace_id), env
+        )
+        self._upsert_env(self._workspace_dir(user_id, workspace_id), inspected)
+        return inspected, None
+
+    def prepare_uv_env(
+        self,
+        user_id: str,
+        workspace_id: str,
+        *,
+        env_id: str = DEFAULT_UV_ENV_ID,
+        display_name: str = "Workspace UV",
+        python_version: str | None = None,
+        packages: list[str] | None = None,
+    ) -> WorkspaceRuntimeEnv:
+        """创建 pyproject/registry 并把状态标记为 syncing，不执行耗时 uv sync。
+
+        用于 HTTP 端点立即返回，避免 uv sync 阻塞 Uvicorn 事件循环。
+        """
         if not self.is_uv_available():
             # uv 缺失时自动安装，避免用户手动操作
             from app.core.uv_utils import install_uv, is_desktop_mode
@@ -227,8 +258,6 @@ class RuntimeEnvironmentService:
 
         if packages:
             _validate_package_names(packages)
-        result: RuntimeEnvCommandResult | None = None
-        if packages:
             result = self._run_uv(
                 ["uv", "add", "--no-sync", *packages],
                 cwd=env_dir,
@@ -236,17 +265,12 @@ class RuntimeEnvironmentService:
             if not result.ok:
                 raise RuntimeError(result.stderr or result.error or "uv add 失败")
 
-        if create_venv or sync:
-            result = self._run_uv(["uv", "sync"], cwd=env_dir)
-            if not result.ok:
-                raise RuntimeError(result.stderr or result.error or "uv sync 失败")
-
         existing = self._find_env(workspace_dir, env_id)
         env = WorkspaceRuntimeEnv(
             env_id=env_id,
             kind="uv",
             display_name=display_name.strip() or "Workspace UV",
-            status="registered",
+            status="syncing",
             active=bool(existing.active if existing else False),
             material_path=str(env_dir),
             python_version=python_version or self._read_python_version(env_dir),
@@ -259,6 +283,46 @@ class RuntimeEnvironmentService:
                 "pyproject": str(pyproject_path),
             },
         )
+        self._upsert_env(workspace_dir, env)
+        return env
+
+    def sync_uv_env(
+        self,
+        user_id: str,
+        workspace_id: str,
+        *,
+        env_id: str = DEFAULT_UV_ENV_ID,
+    ) -> tuple[WorkspaceRuntimeEnv, RuntimeEnvCommandResult | None]:
+        """执行 uv sync 并刷新环境状态。"""
+        env_id = _normalize_env_id(env_id, DEFAULT_UV_ENV_ID)
+        workspace_dir = self._workspace_dir(user_id, workspace_id)
+        env_dir = self._env_dir(workspace_dir)
+        result = self._run_uv(["uv", "sync"], cwd=env_dir)
+
+        existing = self._find_env(workspace_dir, env_id)
+        env = WorkspaceRuntimeEnv(
+            env_id=env_id,
+            kind="uv",
+            display_name=(existing.display_name if existing else "Workspace UV"),
+            status="registered",
+            active=bool(existing.active if existing else False),
+            material_path=str(env_dir),
+            python_version=self._read_python_version(env_dir),
+            python_executable=str(_python_bin_for_venv(env_dir / ".venv")),
+            created_at=existing.created_at if existing else _now_iso(),
+            updated_at=_now_iso(),
+            metadata={
+                **(existing.metadata if existing else {}),
+                "manager": "uv",
+                "pyproject": str(env_dir / "pyproject.toml"),
+            },
+        )
+        if not result.ok:
+            env.status = "error"
+            env.last_error = result.stderr or result.error or "uv sync 失败"
+            self._upsert_env(workspace_dir, env)
+            raise RuntimeError(env.last_error)
+
         inspected = self._inspect_uv_env(workspace_dir, env)
         self._upsert_env(workspace_dir, inspected)
         return inspected, result
