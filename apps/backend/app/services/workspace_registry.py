@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+import filelock
+
 logger = logging.getLogger(__name__)
 
 from app.core.config import WORKSPACE_DIR
@@ -158,7 +160,12 @@ class WorkspaceRegistryService:
         os.makedirs(as_system_path(self.base_dir), exist_ok=True)
         self.session_manager = session_manager or SessionManager(self.base_dir)
         # 保护 _write_json 中的 os.replace，避免 Windows 下并发写同一文件触发 PermissionError
-        self._meta_write_lock = threading.Lock()
+        self._meta_write_lock = None  # 延迟初始化，使用文件锁
+
+    def _get_write_lock(self, path: Path) -> filelock.FileLock:
+        lock_path = Path(str(path) + ".lock")
+        os.makedirs(as_system_path(lock_path.parent), exist_ok=True)
+        return filelock.FileLock(as_system_path(lock_path), timeout=10)
 
     def _get_user_dir(self, user_id: str) -> Path:
         _ensure_valid_id(user_id, "user_id")
@@ -250,11 +257,9 @@ class WorkspaceRegistryService:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(data)
-            # Windows 下 os.replace 可能因文件被占用而失败：
-            # 1. create_workspace 中后台初始化线程会与 create_conversation 并发写 workspace.json
-            # 2. Windows 索引/杀毒软件可能短暂持有新创建文件
-            # 加锁 + 指数退避重试避免 PermissionError [WinError 5]。
-            with self._meta_write_lock:
+            # 使用文件锁保护 os.replace，避免 Windows 下并发写同一文件触发 PermissionError
+            # 同时兼容 Uvicorn 多 worker / 多进程环境。
+            with self._get_write_lock(path):
                 last_error: Exception | None = None
                 for attempt in range(8):
                     try:
