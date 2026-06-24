@@ -624,6 +624,8 @@ class ShellExecutor:
             env.setdefault("WSL_UTF8", "1")
         if override:
             env.update(override)
+        # override 可能重新引入 PYTHONPATH（来自 backend os.environ 或用户自定义）
+        env.pop("PYTHONPATH", None)
         return env
 
     def _windows_startup_info(self) -> dict[str, Any]:
