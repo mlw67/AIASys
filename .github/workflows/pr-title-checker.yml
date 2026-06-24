@@ -9,19 +9,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/pr-title-checker@v1
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          config: |
-            {
-              "LABEL": {
-                "name": "Invalid PR Title",
-                "color": "B60205"
-              },
-              "CHECKS": {
-                "regexp": "^(feat|fix|test|refactor|chore|style|docs|perf|build|ci|revert)(\(.*\))?:.*"
-              },
-              "MESSAGES": {
-                "failure": "The PR title is invalid. Please refer to https://www.conventionalcommits.org/en/v1.0.0/ for the convention. Format: type(scope): description"
-              }
-            }
+      
+      - name: Check PR title format
+        shell: bash
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          
+          # Conventional Commits regex: type(scope): description
+          # Types: feat, fix, test, refactor, chore, style, docs, perf, build, ci, revert
+          if [[ ! "$TITLE" =~ ^(feat|fix|test|refactor|chore|style|docs|perf|build|ci|revert)(\(.+\))?:\ .+ ]]; then
+            echo "::error title=Invalid PR Title::PR title does not follow Conventional Commits format."
+            echo "Title: $TITLE"
+            echo "Expected format: type(scope): description"
+            echo "Example: fix(workspace): avoid overwrite on duplicate uploads"
+            exit 1
+          fi
+          
+          echo "PR title is valid: $TITLE"
