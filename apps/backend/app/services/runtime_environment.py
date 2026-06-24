@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,6 +31,10 @@ from app.models.runtime_environment import (
 from app.models.workspace import ExecutionResourceGroup, WorkspaceRuntimeBinding
 
 logger = logging.getLogger(__name__)
+
+# 服务重启后 _uv_sync_tasks 字典清空，但 env 状态可能仍为 syncing。
+# 超过此时间未更新的 syncing 状态视为 stale，自动标记为 error。
+_STALE_SYNC_TIMEOUT_SECONDS = 600  # 10 分钟
 
 
 DEFAULT_UV_ENV_ID = "workspace-default"
@@ -135,6 +140,39 @@ class RuntimeEnvironmentService:
 
             self.workspace_registry = WorkspaceRegistryService(self.workspace_root)
 
+    def _recover_stale_syncing_envs(self, workspace_dir: Path) -> None:
+        """恢复服务重启后残留的 syncing 状态。
+
+        服务重启后后台 sync 任务丢失，但 env registry 中可能仍标记为 syncing。
+        超过 _STALE_SYNC_TIMEOUT_SECONDS 的 syncing 状态视为 stale，自动标记为 error。
+        """
+        registry = self._read_registry(workspace_dir)
+        envs = registry.get("envs", [])
+        if not isinstance(envs, list):
+            return
+        changed = False
+        now = _now_iso()
+        for item in envs:
+            if not isinstance(item, dict):
+                continue
+            if item.get("status") != "syncing":
+                continue
+            updated_at = item.get("updated_at")
+            if not updated_at:
+                continue
+            try:
+                updated_dt = datetime.fromisoformat(updated_at)
+            except (ValueError, TypeError):
+                continue
+            if (datetime.now() - updated_dt).total_seconds() > _STALE_SYNC_TIMEOUT_SECONDS:
+                item["status"] = "error"
+                item["last_error"] = "后台同步中断（服务重启），请重试。"
+                item["updated_at"] = now
+                changed = True
+        if changed:
+            registry["updated_at"] = now
+            self._write_registry(workspace_dir, registry)
+
     def list_workspace_envs(
         self,
         user_id: str,
@@ -143,6 +181,7 @@ class RuntimeEnvironmentService:
         inspect: bool = True,
     ) -> WorkspaceRuntimeEnvRegistryResponse:
         workspace_dir = self._workspace_dir(user_id, workspace_id)
+        self._recover_stale_syncing_envs(workspace_dir)
         registry = self._read_registry(workspace_dir)
         envs = [
             (
@@ -177,6 +216,8 @@ class RuntimeEnvironmentService:
         sync: bool = False,
     ) -> tuple[WorkspaceRuntimeEnv, RuntimeEnvCommandResult | None]:
         """同步完成 UV 环境准备（创建项目 + 可选 sync）。"""
+        workspace_dir = self._workspace_dir(user_id, workspace_id)
+        self._recover_stale_syncing_envs(workspace_dir)
         env = self.prepare_uv_env(
             user_id,
             workspace_id,
@@ -187,9 +228,7 @@ class RuntimeEnvironmentService:
         )
         if create_venv or sync:
             return self.sync_uv_env(user_id, workspace_id, env_id=env.env_id)
-        inspected = self._inspect_uv_env(
-            self._workspace_dir(user_id, workspace_id), env
-        )
+        inspected = self._inspect_uv_env(self._workspace_dir(user_id, workspace_id), env)
         self._upsert_env(self._workspace_dir(user_id, workspace_id), inspected)
         return inspected, None
 
@@ -573,10 +612,30 @@ class RuntimeEnvironmentService:
     def _write_registry(self, workspace_dir: Path, data: dict[str, Any]) -> None:
         path = self._registry_path(workspace_dir)
         os.makedirs(as_system_path(path.parent), exist_ok=True)
-        Path(as_system_path(path)).write_text(
-            json.dumps(data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        json_data = json.dumps(data, indent=2, ensure_ascii=False)
+        fd, temp_path = tempfile.mkstemp(dir=as_system_path(path.parent), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(json_data)
+            last_error: Exception | None = None
+            for attempt in range(8):
+                try:
+                    os.replace(as_system_path(temp_path), as_system_path(path))
+                    break
+                except PermissionError as exc:
+                    last_error = exc
+                    if attempt == 7:
+                        raise
+                    time.sleep(0.015 * (2**attempt))
+            else:
+                if last_error is not None:
+                    raise last_error
+        except Exception:
+            try:
+                os.unlink(as_system_path(temp_path))
+            except FileNotFoundError:
+                pass
+            raise
 
     def _find_env(self, workspace_dir: Path, env_id: str) -> WorkspaceRuntimeEnv | None:
         registry = self._read_registry(workspace_dir)
