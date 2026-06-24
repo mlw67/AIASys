@@ -570,7 +570,11 @@ def _is_workspace_reference(raw_path: str) -> bool:
     if candidate.startswith("workspace:/") or candidate.startswith("/workspace/"):
         return True
     # LLM 有时只返回文件名（如 industrial_analysis_dashboard.png），兜底视为工作区文件
-    return bool(candidate) and "/" not in candidate and ":" not in candidate
+    # 但为了避免误判普通文件名或 URL，要求包含常见图片扩展名
+    if not candidate or "/" in candidate or ":" in candidate:
+        return False
+    lower = candidate.lower()
+    return lower.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
 
 
 def split_data_url(value: str) -> tuple[str | None, str | None]:
