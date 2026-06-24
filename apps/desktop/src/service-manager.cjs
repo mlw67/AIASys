@@ -1268,6 +1268,7 @@ class DesktopServiceManager {
     return this._buildPythonEnv({
       AIASYS_DESKTOP_MODE: "1",
       AIASYS_AUTH_JWT_SECRET: this._ensureJwtSecret(),
+      ELECTRON_DISABLE_SANDBOX: process.env.ELECTRON_DISABLE_SANDBOX || "1",
       ...bundledUvEnv,
       ...bundledFnmEnv,
       ...fnmDataEnv,
