@@ -1183,36 +1183,34 @@ class WorkspaceRegistryService:
             else:
                 # 无需初始化的资源：直接标记完成
                 if not resolved_resources.python_env_id and not resolved_resources.node_env_id:
-                    # 无需初始化的资源：直接标记完成
-                    if not resolved_resources.python_env_id and not resolved_resources.node_env_id:
-                        self._update_initialization_status(
+                    self._update_initialization_status(
+                        user_id,
+                        resolved_workspace_id,
+                        status="completed",
+                        progress=100,
+                        message="运行环境初始化完成",
+                        completed_at=_now_iso(),
+                    )
+                else:
+                    # 记录 pending 状态，启动后台线程完成真实环境创建
+                    self._update_initialization_status(
+                        user_id,
+                        resolved_workspace_id,
+                        status="pending",
+                        progress=0,
+                        message="排队等待初始化运行环境",
+                    )
+                    thread = threading.Thread(
+                        target=self._initialize_workspace_resources,
+                        args=(
                             user_id,
                             resolved_workspace_id,
-                            status="completed",
-                            progress=100,
-                            message="运行环境初始化完成",
-                            completed_at=_now_iso(),
-                        )
-                    else:
-                        # 记录 pending 状态，启动后台线程完成真实环境创建
-                        self._update_initialization_status(
-                            user_id,
-                            resolved_workspace_id,
-                            status="pending",
-                            progress=0,
-                            message="排队等待初始化运行环境",
-                        )
-                        thread = threading.Thread(
-                            target=self._initialize_workspace_resources,
-                            args=(
-                                user_id,
-                                resolved_workspace_id,
-                                normalized_runtime_binding,
-                                env_vars,
-                            ),
-                            daemon=True,
-                        )
-                        thread.start()
+                            normalized_runtime_binding,
+                            env_vars,
+                        ),
+                        daemon=True,
+                    )
+                    thread.start()
 
             self.create_conversation(
                 user_id=user_id,
