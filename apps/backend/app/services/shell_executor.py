@@ -609,6 +609,10 @@ class ShellExecutor:
         env["NO_COLOR"] = "1"
         env["TERM"] = "dumb"
         env["GIT_TERMINAL_PROMPT"] = env.get("GIT_TERMINAL_PROMPT", "0")
+        # 清除 PYTHONPATH，避免 backend venv（Python 3.12）的 site-packages
+        # 污染工作区 venv（Python 3.13）或其他 Python 版本的子进程。
+        # shell 命令若需 PYTHONPATH 应在命令内显式设置。
+        env.pop("PYTHONPATH", None)
         if self._is_windows:
             env.setdefault("PYTHONIOENCODING", "utf-8")
             # LC_ALL/LANG 仅对 POSIX shell 有意义；对 cmd 设置反而会在 WSL
