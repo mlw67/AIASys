@@ -20,6 +20,12 @@
 </p>
 
 <p align="center">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-supported-0078D4?style=flat-square&logo=windows&logoColor=white">
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-supported-000000?style=flat-square&logo=apple&logoColor=white">
+  <img alt="Linux" src="https://img.shields.io/badge/Linux-supported-FCC624?style=flat-square&logo=linux&logoColor=black">
+</p>
+
+<p align="center">
   <a href="https://github.com/AIAsys/AIASys/releases">下载安装</a> ·
   <a href="docs/guides/getting-started/QUICKSTART.md">快速开始</a> ·
   <a href="docs/guides/getting-started/SYSTEM_USAGE.md">使用指南</a> ·
@@ -29,7 +35,11 @@
 
 ---
 
-**AIASys（艾斯）**是一款本地部署的 AI Agent 工作平台。它不把任务压进一次性聊天窗口，而是围绕“任务工作区”组织资料、上下文、执行过程和最终产物，让复杂任务可以被回看、继续、复用和扩展。
+AIASys（艾斯）是一款本地部署的 AI Agent 工作平台。它不把任务压进一次性聊天窗口，而是围绕“任务工作区”组织资料、上下文、执行过程和最终产物，让复杂任务可以被回看、继续、复用和扩展。
+
+<p align="center">
+  <img src="images/readme/aiasys-workspace-loop.png" alt="AIASys 工作区运行闭环" width="820">
+</p>
 
 桌面版是推荐日常使用形态，Web 版适合开发调试、临时访问和私有部署。当前重点场景包括论文精读、数据分析、代码实验、知识管理、自动化任务和多 Agent 协作。
 
