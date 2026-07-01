@@ -27,6 +27,7 @@ from .mcp import router as mcp_router
 from .mcp_session import router as mcp_session_router
 from .memory import router as memory_router
 from .notebooks import router as notebooks_router
+from .research import router as research_router
 from .runtime_database import router as runtime_database_router
 from .runtime_envs import router as runtime_envs_router
 from .session_database import router as session_database_router
@@ -66,6 +67,7 @@ api_router.include_router(auth_router)
 api_router.include_router(ask_user_router)
 api_router.include_router(mcp_router)
 api_router.include_router(memory_router)
+api_router.include_router(research_router)
 api_router.include_router(ui_settings_router)
 api_router.include_router(global_env_vars_router)
 api_router.include_router(graphrag_router)

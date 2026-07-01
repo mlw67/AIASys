@@ -24,6 +24,8 @@ tools = [
     "app.agents.tools.graphrag_tool:SearchKnowledgeGraphEntities",
     "app.agents.tools.graphrag_tool:GetKnowledgeGraphEntityDetail",
     "app.agents.tools.graphrag_tool:ListKnowledgeGraphs",
+    "app.agents.tools.papervault_search_tool:PaperVaultSearch",
+    "app.agents.tools.papervault_stats_tool:PaperVaultStats",
     "app.agents.tools.skill_tools:ListSkills",
     "app.agents.tools.skill_tools:LoadSkill",
     "app.agents.tools.skill_tools:SearchStoreSkills",

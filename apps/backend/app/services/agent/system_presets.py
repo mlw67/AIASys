@@ -81,6 +81,10 @@ KNOWLEDGE_BASE_READ_TOOL_PATHS: tuple[str, ...] = (
     "app.agents.tools.knowledge_tool:ListKnowledgeBases",
     "app.agents.tools.knowledge_tool:ListKnowledgeBaseDocuments",
 )
+PAPERVAULT_TOOL_PATHS: tuple[str, ...] = (
+    "app.agents.tools.papervault_search_tool:PaperVaultSearch",
+    "app.agents.tools.papervault_stats_tool:PaperVaultStats",
+)
 DATA_TABLE_TOOL_PATHS: tuple[str, ...] = (
     "app.agents.tools.data_table_tool:CreateDataTable",
     "app.agents.tools.data_table_tool:ReadDataTableSchema",
@@ -185,6 +189,7 @@ _ROLE_TYPE_TOOL_MAP: dict[str, tuple[str, ...]] = {
             "app.agents.tools.file_tools:ReadFile",
             *KNOWLEDGE_BASE_READ_TOOL_PATHS,
             *KNOWLEDGE_GRAPH_READ_TOOL_PATHS,
+            *PAPERVAULT_TOOL_PATHS,
             "app.agents.tools.skill_tools:ListSkills",
             "app.agents.tools.skill_tools:LoadSkill",
             "app.agents.tools.skill_tools:SearchStoreSkills",
@@ -232,6 +237,8 @@ _ROLE_TYPE_TOOL_MAP: dict[str, tuple[str, ...]] = {
             "app.agents.tools.skill_tools:SearchStoreSkills",
             "app.agents.tools.skill_tools:EnableSkill",
             "app.agents.tools.skill_tools:DisableSkill",
+            # PaperVault 科研论文工具
+            *PAPERVAULT_TOOL_PATHS,
             # MCP 工具
             "app.agents.tools.mcp_tools:ListMCPServers",
             "app.agents.tools.mcp_tools:SearchMCPMarket",
@@ -444,6 +451,7 @@ DATA_ANALYSIS_BASELINE = SystemAgentBaseline(
             "app.agents.tools.skill_tools:SearchStoreSkills",
             "app.agents.tools.skill_tools:EnableSkill",
             "app.agents.tools.skill_tools:DisableSkill",
+            *PAPERVAULT_TOOL_PATHS,
             "app.agents.tools.expert_tools:ListSystemExperts",
             "app.agents.tools.expert_tools:InstallExpert",
             "app.agents.tools.expert_tools:ConfigureExpert",

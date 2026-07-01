@@ -50,6 +50,20 @@ const TEMPLATE_LIBRARY: readonly AutoTaskTemplate[] = [
     triggerType: "cron",
     triggerValue: "0 20 * * 5",
   },
+  {
+    id: "literature-survey",
+    name: "PaperVault 文献综述",
+    summary: "围绕指定主题自动检索 PaperVault 论文、生成综述草稿，并在关键节点暂停等待审核。",
+    title: "文献综述：",
+    prompt:
+      "你是 PaperVault 文献综述自动化 Agent。请围绕本工作区当前研究主题，使用 PaperVaultSearch / PaperVaultStats 或调用 researcher / reviewer / data_analyst 子 Agent，按 plan -> collect -> filter -> analyze -> draft -> review -> iterate -> complete 生命周期推进。\n\n每轮执行纪律：\n1. 读取 research/{topic}/ 下已有产物，避免重复。\n2. 每次只推进一个阶段。\n3. 所有结论必须标注来源论文 title + url。\n4. 关键节点（检索策略、候选列表、综述大纲、最终综述）调用 AskUser(type='confirm') 暂停等待确认。\n5. 最终确认后调用 auto_task_signal(action='complete')，阻塞时调用 auto_task_signal(action='pause')。\n\n产物路径：research/{topic}/candidate_papers.md、research/{topic}/trends.json、research/{topic}/survey_draft.md、.aiasys/memory/workspace_memory.md。",
+    triggerType: "continuous",
+    triggerValue: "",
+    taskCategory: "continuous",
+    sessionStrategy: "bind_session",
+    continuationPrompt:
+      "继续推进文献综述。先读取已有产物，判断当前阶段，然后执行下一个最小可交付步骤。",
+  },
 ];
 
 export function createEmptyAutoTaskDraft(): AutoTaskDraft {
@@ -59,6 +73,7 @@ export function createEmptyAutoTaskDraft(): AutoTaskDraft {
 export function buildDraftFromTemplate(
   template: AutoTaskTemplate,
 ): AutoTaskDraft {
+  const isContinuous = template.taskCategory === "continuous";
   return {
     title: template.title,
     prompt: template.prompt,
@@ -71,11 +86,11 @@ export function buildDraftFromTemplate(
     modelId: "",
     overlapPolicy: "skip",
     bindSessionId: "",
-    sessionStrategy: "new_each_time",
-    continuationPrompt: "",
+    sessionStrategy: template.sessionStrategy ?? "new_each_time",
+    continuationPrompt: template.continuationPrompt ?? "",
     maxContinuations: -1,
-    taskCategory: "scheduled",
-    firstRunPolicy: "next_scheduled",
+    taskCategory: template.taskCategory ?? "scheduled",
+    firstRunPolicy: isContinuous ? "immediate" : "next_scheduled",
     stopOnConsecutiveErrors: 10,
     stopOnSignal: true,
   };

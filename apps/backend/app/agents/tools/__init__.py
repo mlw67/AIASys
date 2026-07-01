@@ -93,6 +93,8 @@ if TYPE_CHECKING:
         ListSessionNotebooks,
     )
     from .notebook_tool import ManageNotebook
+    from .papervault_search_tool import PaperVaultSearch
+    from .papervault_stats_tool import PaperVaultStats
     from .runtime_environment_tool import RuntimeEnvironment
     from .shell_tool import Shell
     from .task_plan_tools import (
@@ -157,6 +159,8 @@ __all__ = [
     "get_delete_documents_from_knowledge_base_tool",
     "DeleteKnowledgeBase",
     "get_delete_knowledge_base_tool",
+    "PaperVaultSearch",
+    "PaperVaultStats",
     "DatabaseQuery",
     "ListDatabaseConnectors",
     "ListDatabaseTables",
@@ -298,6 +302,11 @@ def __getattr__(name: str) -> Any:
     }:
         module = import_module(".knowledge_tool", __name__)
         return getattr(module, name)
+
+    if name == "PaperVaultSearch":
+        return import_module(".papervault_search_tool", __name__).PaperVaultSearch
+    if name == "PaperVaultStats":
+        return import_module(".papervault_stats_tool", __name__).PaperVaultStats
 
     if name in {
         "DatabaseQuery",

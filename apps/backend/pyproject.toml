@@ -50,6 +50,9 @@ dependencies = [
     "scikit-learn>=1.3.0",
     "networkx>=3.6.1",
     "editdistance>=0.8.1",
+    # Hugging Face datasets for PaperVault integration
+    "datasets>=3.0.0",
+    "huggingface-hub>=0.24.0",
     # Notebook / local Python execution
     "pip>=24.0",
     "jupyter-client>=8.8.0",

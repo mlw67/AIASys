@@ -257,6 +257,21 @@ _TOOL_METADATA: dict[str, dict[str, Any]] = {
         "provider": "aiasys",
         "description": "GraphRAG 文档上传构图工具。",
     },
+    # ---- PaperVault 科研论文工具 ----
+    "app.agents.tools.papervault_search_tool:PaperVaultSearch": {
+        "capability_id": "native.papervault_search",
+        "display_name": "PaperVault Search",
+        "kind": CapabilityKind.NATIVE_TOOL,
+        "provider": "aiasys",
+        "description": "在 PaperVault 论文元数据数据库中搜索学术论文。",
+    },
+    "app.agents.tools.papervault_stats_tool:PaperVaultStats": {
+        "capability_id": "native.papervault_stats",
+        "display_name": "PaperVault Stats",
+        "kind": CapabilityKind.NATIVE_TOOL,
+        "provider": "aiasys",
+        "description": "获取 PaperVault 论文数据集统计信息。",
+    },
     # ---- 多维表工具 ----
     "app.agents.tools.data_table_tool:CreateDataTable": {
         "capability_id": "native.create_data_table",

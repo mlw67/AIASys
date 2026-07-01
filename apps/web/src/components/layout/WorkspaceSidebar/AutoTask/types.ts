@@ -35,6 +35,9 @@ export type AutoTaskTemplate = {
   prompt: string;
   triggerType: AutoTaskDraft["triggerType"];
   triggerValue: string;
+  taskCategory?: AutoTaskDraft["taskCategory"];
+  sessionStrategy?: AutoTaskDraft["sessionStrategy"];
+  continuationPrompt?: string;
 };
 
 export interface AutoTaskFeedback {
