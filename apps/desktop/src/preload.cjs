@@ -70,4 +70,12 @@ contextBridge.exposeInMainWorld("__AIASYS_DESKTOP__", {
   openPath(targetPath) {
     return ipcRenderer.invoke("aiasys:open-path", targetPath);
   },
+  // 获取桌面端应用版本号
+  getVersion() {
+    return ipcRenderer.invoke("aiasys:get-version");
+  },
+  // 用系统默认浏览器打开外部链接
+  openExternal(url) {
+    return ipcRenderer.invoke("aiasys:open-external", url);
+  },
 });

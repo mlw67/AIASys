@@ -826,6 +826,146 @@ export function NewWorkspaceDialog({
             </RadioGroup>
           </div>
 
+          {creationMode === "template" && (
+            <div className="space-y-2">
+              <Label>选择模板（可选）</Label>
+              {isLoadingTemplates ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                加载模板中...
+              </div>
+            ) : templateLoadError ? (
+              <div className="text-sm text-red-500">加载模板失败：{templateLoadError}</div>
+            ) : templates.length === 0 ? (
+              <div className="text-sm text-muted-foreground">暂无可用模板</div>
+            ) : (
+              <>
+                <TemplateSortableGrid
+                  templates={templates}
+                  selectedTemplateId={selectedTemplateId}
+                  isBusy={effectiveLifecycleState.isBusy}
+                  onSelect={(templateId) => setSelectedTemplateId(templateId)}
+                  onPreview={(template) => setPreviewingTemplate(template)}
+                  onReorder={handleTemplateReorder}
+                />
+
+                {/* 模板预览 */}
+                {selectedTemplate &&
+                  selectedTemplate.template_id !== "blank-workspace" &&
+                  selectedTemplate.files &&
+                  selectedTemplate.files.length > 0 && (
+                    <div className="mt-3 overflow-hidden rounded-lg border border-border">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewExpanded((v) => !v)}
+                        className="flex w-full items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5 text-left"
+                      >
+                        <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                          <FileText className="h-3 w-3" />
+                          选择要导入的文件
+                        </span>
+                        {previewExpanded ? (
+                          <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        )}
+                      </button>
+                      {previewExpanded && (
+                        <div className="max-h-60 overflow-y-auto px-2 py-2">
+                          <TemplateFileTreeSelector
+                            files={selectedTemplate.files.map((f) => ({
+                              path: f.relative_path,
+                              content: f.content,
+                            }))}
+                            selectedPaths={selectedTemplateFiles}
+                            onSelectionChange={setSelectedTemplateFiles}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                {/* 推荐能力勾选 */}
+                {hasRecommendedCapabilities && (
+                  <div className="mt-3 overflow-hidden rounded-lg border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setCapabilitiesExpanded((v) => !v)}
+                      className="flex w-full items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5 text-left"
+                    >
+                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                        <Puzzle className="h-3 w-3" />
+                        推荐能力
+                        <span className="text-[10px] text-muted-foreground/70">
+                          ({selectedCapabilities.size} 项已选)
+                        </span>
+                      </span>
+                      {capabilitiesExpanded ? (
+                        <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </button>
+                    {capabilitiesExpanded && (
+                      <div className="space-y-3 px-3 py-2">
+                        {(() => {
+                          const allCaps = (selectedTemplate!.recommended_capabilities ?? []).map((c) => ({
+                            id: c.capability_id,
+                            kind: c.kind,
+                            label: c.capability_id,
+                            required: c.required,
+                          }));
+
+                          const groups: Record<string, { label: string; icon: React.ReactNode; items: typeof allCaps }> = {
+                            skill_pack: { label: "技能", icon: <Puzzle className="h-3 w-3" />, items: [] },
+                            mcp_server: { label: "连接器", icon: <Plug className="h-3 w-3" />, items: [] },
+                            subagent: { label: "专家协作节点", icon: <Puzzle className="h-3 w-3" />, items: [] },
+                          };
+                          allCaps.forEach((c) => {
+                            const g = groups[c.kind] ?? groups.skill_pack;
+                            g.items.push(c);
+                          });
+
+                          return Object.entries(groups)
+                            .filter(([, g]) => g.items.length > 0)
+                            .map(([kind, g]) => (
+                              <div key={kind} className="space-y-1.5">
+                                <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                                  {g.icon}
+                                  {g.label}
+                                </div>
+                                {g.items.map((cap) => (
+                                  <Checkbox
+                                    key={cap.id}
+                                    label={cap.label}
+                                    checked={selectedCapabilities.has(cap.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (cap.required && !checked) return;
+                                      setSelectedCapabilities((prev) => {
+                                        const next = new Set(prev);
+                                        if (checked) {
+                                          next.add(cap.id);
+                                        } else {
+                                          next.delete(cap.id);
+                                        }
+                                        return next;
+                                      });
+                                    }}
+                                    disabled={effectiveLifecycleState.isBusy || cap.required}
+                                  />
+                                ))}
+                              </div>
+                            ));
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          )}
+
           {/* 文件夹导入区域 */}
           {creationMode === "folder" && (
             <div
@@ -1164,145 +1304,6 @@ export function NewWorkspaceDialog({
             </div>
           </div>
 
-          {creationMode === "template" && (
-            <div className="space-y-2">
-              <Label>选择模板（可选）</Label>
-              {isLoadingTemplates ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                加载模板中...
-              </div>
-            ) : templateLoadError ? (
-              <div className="text-sm text-red-500">加载模板失败：{templateLoadError}</div>
-            ) : templates.length === 0 ? (
-              <div className="text-sm text-muted-foreground">暂无可用模板</div>
-            ) : (
-              <>
-                <TemplateSortableGrid
-                  templates={templates}
-                  selectedTemplateId={selectedTemplateId}
-                  isBusy={effectiveLifecycleState.isBusy}
-                  onSelect={(templateId) => setSelectedTemplateId(templateId)}
-                  onPreview={(template) => setPreviewingTemplate(template)}
-                  onReorder={handleTemplateReorder}
-                />
-
-                {/* 模板预览 */}
-                {selectedTemplate &&
-                  selectedTemplate.template_id !== "blank-workspace" &&
-                  selectedTemplate.files &&
-                  selectedTemplate.files.length > 0 && (
-                    <div className="mt-3 overflow-hidden rounded-lg border border-border">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewExpanded((v) => !v)}
-                        className="flex w-full items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5 text-left"
-                      >
-                        <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                          <FileText className="h-3 w-3" />
-                          选择要导入的文件
-                        </span>
-                        {previewExpanded ? (
-                          <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        )}
-                      </button>
-                      {previewExpanded && (
-                        <div className="max-h-60 overflow-y-auto px-2 py-2">
-                          <TemplateFileTreeSelector
-                            files={selectedTemplate.files.map((f) => ({
-                              path: f.relative_path,
-                              content: f.content,
-                            }))}
-                            selectedPaths={selectedTemplateFiles}
-                            onSelectionChange={setSelectedTemplateFiles}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                {/* 推荐能力勾选 */}
-                {hasRecommendedCapabilities && (
-                  <div className="mt-3 overflow-hidden rounded-lg border border-border">
-                    <button
-                      type="button"
-                      onClick={() => setCapabilitiesExpanded((v) => !v)}
-                      className="flex w-full items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5 text-left"
-                    >
-                      <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                        <Puzzle className="h-3 w-3" />
-                        推荐能力
-                        <span className="text-[10px] text-muted-foreground/70">
-                          ({selectedCapabilities.size} 项已选)
-                        </span>
-                      </span>
-                      {capabilitiesExpanded ? (
-                        <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                      )}
-                    </button>
-                    {capabilitiesExpanded && (
-                      <div className="space-y-3 px-3 py-2">
-                        {(() => {
-                          const allCaps = (selectedTemplate!.recommended_capabilities ?? []).map((c) => ({
-                            id: c.capability_id,
-                            kind: c.kind,
-                            label: c.capability_id,
-                            required: c.required,
-                          }));
-
-                          const groups: Record<string, { label: string; icon: React.ReactNode; items: typeof allCaps }> = {
-                            skill_pack: { label: "技能", icon: <Puzzle className="h-3 w-3" />, items: [] },
-                            mcp_server: { label: "连接器", icon: <Plug className="h-3 w-3" />, items: [] },
-                            subagent: { label: "专家协作节点", icon: <Puzzle className="h-3 w-3" />, items: [] },
-                          };
-                          allCaps.forEach((c) => {
-                            const g = groups[c.kind] ?? groups.skill_pack;
-                            g.items.push(c);
-                          });
-
-                          return Object.entries(groups)
-                            .filter(([, g]) => g.items.length > 0)
-                            .map(([kind, g]) => (
-                              <div key={kind} className="space-y-1.5">
-                                <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                                  {g.icon}
-                                  {g.label}
-                                </div>
-                                {g.items.map((cap) => (
-                                  <Checkbox
-                                    key={cap.id}
-                                    label={cap.label}
-                                    checked={selectedCapabilities.has(cap.id)}
-                                    onCheckedChange={(checked) => {
-                                      if (cap.required && !checked) return;
-                                      setSelectedCapabilities((prev) => {
-                                        const next = new Set(prev);
-                                        if (checked) {
-                                          next.add(cap.id);
-                                        } else {
-                                          next.delete(cap.id);
-                                        }
-                                        return next;
-                                      });
-                                    }}
-                                    disabled={effectiveLifecycleState.isBusy || cap.required}
-                                  />
-                                ))}
-                              </div>
-                            ));
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          )}
         </div>
 
         <PreflightCheck onNavigateSettings={onOpenGlobalSettings} />
@@ -1367,3 +1368,4 @@ export function NewWorkspaceDialog({
     </Dialog>
   );
 }
+

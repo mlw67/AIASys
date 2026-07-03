@@ -89,6 +89,7 @@ class UpdateProviderRequest(BaseModel):
     """更新服务商请求"""
 
     name: Optional[str] = Field(None, min_length=1, max_length=128)
+    type: Optional[ProviderType] = Field(None, description="服务商类型")
     base_url: Optional[str] = None
     api_key: Optional[str] = Field(None, description="API Key（留空表示不修改）")
     env: Optional[Dict[str, str]] = Field(None, description="环境变量配置")

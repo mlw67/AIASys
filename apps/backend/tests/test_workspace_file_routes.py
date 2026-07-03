@@ -579,7 +579,7 @@ async def test_admin_list_all_files_returns_absolute_paths(
     workspace_dir = service._get_workspace_dir("local_default", "task-admin-list-all")
     listed_file = workspace_dir / "reports" / "summary.md"
     listed_file.parent.mkdir(parents=True, exist_ok=True)
-    listed_file.write_text("# summary\n", encoding="utf-8")
+    listed_file.write_text("# summary\n", encoding="utf-8", newline="\n")
 
     payload = await files_core_route.list_all_files(current_user=_build_user())
 

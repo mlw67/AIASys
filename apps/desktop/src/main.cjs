@@ -870,6 +870,30 @@ ipcMain.handle("aiasys:open-path", async (_event, targetPath) => {
   }
 });
 
+// 注册 IPC：获取应用版本号
+ipcMain.handle("aiasys:get-version", () => {
+  try {
+    return app.getVersion();
+  } catch (e) {
+    console.error("[aiasys-desktop] get-version failed:", e);
+    return "";
+  }
+});
+
+// 注册 IPC：用系统默认浏览器打开外部链接
+ipcMain.handle("aiasys:open-external", async (_event, url) => {
+  if (!url || typeof url !== "string") {
+    return false;
+  }
+  try {
+    await shell.openExternal(url);
+    return true;
+  } catch (e) {
+    console.error("[aiasys-desktop] open-external failed:", e);
+    return false;
+  }
+});
+
 ipcMain.handle("aiasys:select-folder", async (_event, options = {}) => {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return { canceled: true, filePaths: [] };

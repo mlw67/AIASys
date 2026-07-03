@@ -645,6 +645,11 @@ export const FileTreeView: React.FC<FileTreeViewProps> = ({
     );
   }, [copyFailure]);
 
+  const canOpenInSystemExplorer = useMemo(
+    () => typeof window !== "undefined" && !!window.__AIASYS_DESKTOP__?.openPath,
+    [],
+  );
+
   const handleOpenInSystemExplorer = useCallback(async (targetPath: string) => {
     const desktop = typeof window !== "undefined" ? window.__AIASYS_DESKTOP__ : undefined;
     if (desktop?.openPath) {
@@ -1453,6 +1458,7 @@ export const FileTreeView: React.FC<FileTreeViewProps> = ({
         isMarkdownFile={isMarkdownFile}
         onRefreshFiles={onRefreshFiles}
         onOpenInSystemExplorer={handleOpenInSystemExplorer}
+        canOpenInSystemExplorer={canOpenInSystemExplorer}
       />
 
       <FolderContextMenu
@@ -1474,6 +1480,7 @@ export const FileTreeView: React.FC<FileTreeViewProps> = ({
         closeFolderMenu={closeFolderMenu}
         onRefreshFiles={onRefreshFiles}
         onOpenInSystemExplorer={handleOpenInSystemExplorer}
+        canOpenInSystemExplorer={canOpenInSystemExplorer}
       />
 
       <AlertDialog

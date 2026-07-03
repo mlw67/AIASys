@@ -70,6 +70,7 @@ interface FileContextMenuProps {
   onRefreshFiles?: () => Promise<void>;
   onOpenInBrowserTab?: (file: WorkspaceFile) => void;
   onOpenInSystemExplorer?: (targetPath: string) => void;
+  canOpenInSystemExplorer?: boolean;
 }
 
 export function FileContextMenu({
@@ -97,6 +98,7 @@ export function FileContextMenu({
   onRefreshFiles: _onRefreshFiles,
   onOpenInBrowserTab,
   onOpenInSystemExplorer,
+  canOpenInSystemExplorer,
 }: FileContextMenuProps) {
   if (!fileMenu) return null;
 
@@ -333,7 +335,7 @@ export function FileContextMenu({
               编辑文件
             </button>
           ) : null}
-          {onOpenInSystemExplorer && fileMenu.file.absolute_path ? (
+          {canOpenInSystemExplorer && onOpenInSystemExplorer && fileMenu.file.absolute_path ? (
             <button
               type="button"
               role="menuitem"
@@ -483,6 +485,7 @@ interface FolderContextMenuProps {
   closeFolderMenu: () => void;
   onRefreshFiles?: () => Promise<void>;
   onOpenInSystemExplorer?: (targetPath: string) => void;
+  canOpenInSystemExplorer?: boolean;
 }
 
 export function FolderContextMenu({
@@ -504,6 +507,7 @@ export function FolderContextMenu({
   closeFolderMenu,
   onRefreshFiles: _onRefreshFiles2,
   onOpenInSystemExplorer,
+  canOpenInSystemExplorer,
 }: FolderContextMenuProps) {
   if (!folderMenu) return null;
 
@@ -672,7 +676,7 @@ export function FolderContextMenu({
           {option.label}
         </button>
       ))}
-      {onOpenInSystemExplorer && folderMenu.absolutePath ? (
+      {canOpenInSystemExplorer && onOpenInSystemExplorer && folderMenu.absolutePath ? (
         <button
           type="button"
           role="menuitem"
