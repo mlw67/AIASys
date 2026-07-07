@@ -86,7 +86,7 @@
       ],
       "requestedExecutionLevel": "asInvoker",
       "icon": "build/icon.ico",
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,
