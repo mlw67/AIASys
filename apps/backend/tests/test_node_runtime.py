@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.node_runtime import _parse_fnm_list_versions
+from app.services.node_runtime import _normalize_node_version, _parse_fnm_list_versions
 
 
 @pytest.mark.parametrize(
@@ -18,3 +18,26 @@ from app.services.node_runtime import _parse_fnm_list_versions
 )
 def test_parse_fnm_list_versions(stdout: str, expected: list[str]) -> None:
     assert _parse_fnm_list_versions(stdout) == expected
+
+
+@pytest.mark.parametrize(
+    "version,expected",
+    [
+        ("20", "20"),
+        ("v20", "20"),
+        ("20.11", "20.11"),
+        ("v20.11.0", "20.11.0"),
+        ("lts", "lts/*"),
+        ("lts/*", "lts/*"),
+        ("lts-iron", "lts-iron"),
+    ],
+)
+def test_normalize_node_version(version: str, expected: str) -> None:
+    """裸 lts 必须归一化为 lts/*，否则 bundled fnm 会报不可安装。"""
+    assert _normalize_node_version(version) == expected
+
+
+@pytest.mark.parametrize("version", ["", "   ", None])
+def test_normalize_node_version_empty(version: str | None) -> None:
+    with pytest.raises(ValueError):
+        _normalize_node_version(version)
