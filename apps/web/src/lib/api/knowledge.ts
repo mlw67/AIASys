@@ -17,6 +17,8 @@ import type {
   KnowledgeBaseHealth,
   KnowledgeBaseTableInfo,
   KnowledgeBaseRawQueryResponse,
+  ChromaImportRequest,
+  ChromaImportResponse,
 } from "@/types/knowledge";
 
 /**
@@ -255,6 +257,22 @@ export const knowledgeApi = {
   async health(): Promise<KnowledgeBaseHealth> {
     return apiRequest<KnowledgeBaseHealth>(
       `${API_BASE_URL}${API_ENDPOINTS.KNOWLEDGE_HEALTH}`,
+    );
+  },
+
+  /**
+   * 从 Chroma Vector Database 原生磁盘存储导入
+   */
+  async importChroma(
+    kbId: string,
+    data: ChromaImportRequest,
+  ): Promise<ChromaImportResponse> {
+    return apiRequest<ChromaImportResponse>(
+      `${API_BASE_URL}${API_ENDPOINTS.KNOWLEDGE_BASE_IMPORT_CHROMA(kbId)}`,
+      {
+        method: "POST",
+        body: data,
+      },
     );
   },
 };

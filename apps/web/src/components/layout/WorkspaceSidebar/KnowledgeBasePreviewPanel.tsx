@@ -4,6 +4,7 @@ import {
   CircleAlert,
   Clock,
   Code2,
+  Database,
   FileText,
   Loader2,
   Search,
@@ -36,6 +37,7 @@ import {
 import knowledgeApi from "@/lib/api/knowledge";
 import { getModelDefaults, getModels, type LLMModelConfig } from "@/lib/api/llm";
 import { SqlQueryPanel } from "@/components/database/SqlQueryPanel";
+import { ChromaImportDialog } from "@/components/knowledge/ChromaImportDialog";
 import type {
   QueryResult,
   KnowledgeBaseTableInfo,
@@ -45,6 +47,7 @@ import type {
   KnowledgeBaseSearchMode,
   KnowledgeBaseExtractionMode,
   UpdateKnowledgeBaseRequest,
+  ChromaImportResponse,
 } from "@/types/knowledge";
 import { getNumber, getText } from "./ResourcePreviewShared";
 import { CanvasActionMenu } from "@/components/workspace/CanvasActionMenu";
@@ -201,10 +204,22 @@ export function KnowledgeBasePreviewPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Chroma 导入状态
+  const [isChromaImportOpen, setIsChromaImportOpen] = useState(false);
+  const [chromaPersistDir, setChromaPersistDir] = useState("");
+  const [chromaCollectionName, setChromaCollectionName] = useState("");
+  const [importAllCollections, setImportAllCollections] = useState(false);
+  const [chromaDocumentSourceKey, setChromaDocumentSourceKey] = useState("source");
+  const [chromaEmbeddingModel, setChromaEmbeddingModel] = useState("");
+  const [chromaImportResults, setChromaImportResults] = useState<ChromaImportResponse | null>(null);
+  const [isChromaImporting, setIsChromaImporting] = useState(false);
+
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(null);
   const [isLoadingKnowledgeBase, setIsLoadingKnowledgeBase] = useState(false);
   const [knowledgeBaseError, setKnowledgeBaseError] = useState<string | null>(null);
   const [embeddingModels, setEmbeddingModels] = useState<LLMModelConfig[]>([]);
+  const [allEmbeddingModels, setAllEmbeddingModels] = useState<LLMModelConfig[]>([]);
   const [defaultEmbeddingModelId, setDefaultEmbeddingModelId] = useState<string | null>(null);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
@@ -302,19 +317,21 @@ export function KnowledgeBasePreviewPanel({
     async function loadModels() {
       setIsLoadingModels(true);
       try {
-        const [modelsResponse, defaults] = await Promise.all([
+        const [enabledResponse, allResponse, defaults] = await Promise.all([
           getModels(true),
+          getModels(false),
           getModelDefaults(),
         ]);
         if (cancelled) return;
-        setEmbeddingModels(
-          modelsResponse.models.filter((model) => model.model_type === "embedding"),
-        );
+        const isEmbedding = (model: LLMModelConfig) => model.model_type === "embedding";
+        setEmbeddingModels(enabledResponse.models.filter(isEmbedding));
+        setAllEmbeddingModels(allResponse.models.filter(isEmbedding));
         setDefaultEmbeddingModelId(defaults.default_embedding_model);
       } catch (err) {
         if (cancelled) return;
         console.error("加载 embedding 模型失败:", err);
         setEmbeddingModels([]);
+        setAllEmbeddingModels([]);
         setDefaultEmbeddingModelId(null);
       } finally {
         if (!cancelled) setIsLoadingModels(false);
@@ -489,6 +506,50 @@ export function KnowledgeBasePreviewPanel({
       }
     },
     [canUseKnowledgeBase, isUploading, knowledgeBase?.config_issue, knowledgeBase?.default_extraction_mode, knowledgeBaseId, onRefresh, refreshKnowledgeBase],
+  );
+
+  const handleOpenChromaImport = useCallback(() => {
+    if (!knowledgeBaseId || !canUseKnowledgeBase) {
+      setUploadError(knowledgeBase?.config_issue || "需要先配置模型");
+      return;
+    }
+    setChromaPersistDir("");
+    setChromaCollectionName("");
+    setImportAllCollections(false);
+    setChromaDocumentSourceKey("source");
+    setChromaEmbeddingModel(knowledgeBase?.embedding_model || defaultEmbeddingModelId || "");
+    setChromaImportResults(null);
+    setIsChromaImportOpen(true);
+  }, [canUseKnowledgeBase, defaultEmbeddingModelId, knowledgeBase?.config_issue, knowledgeBase?.embedding_model, knowledgeBaseId]);
+
+  const handleChromaImport = useCallback(
+    async () => {
+      if (!knowledgeBaseId) return;
+      if (!chromaPersistDir.trim() || (!importAllCollections && !chromaCollectionName.trim()) || !chromaEmbeddingModel) {
+        setUploadError("请填写完整导入信息");
+        return;
+      }
+      setIsChromaImporting(true);
+      setUploadError(null);
+      try {
+        const response = await knowledgeApi.importChroma(knowledgeBaseId, {
+          chroma_persist_dir: chromaPersistDir.trim(),
+          collection_name: importAllCollections ? undefined : chromaCollectionName.trim(),
+          embedding_model: chromaEmbeddingModel,
+          document_source_key: chromaDocumentSourceKey.trim() || "source",
+        });
+        setChromaImportResults(response);
+        if (response.success) {
+          await onRefresh?.();
+          await refreshKnowledgeBase();
+        }
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : "Chroma 导入失败");
+      } finally {
+        setIsChromaImporting(false);
+      }
+    },
+    [chromaCollectionName, chromaDocumentSourceKey, chromaEmbeddingModel, chromaPersistDir, importAllCollections, knowledgeBaseId, onRefresh, refreshKnowledgeBase],
   );
 
   // 原始数据 Tab：加载表列表
@@ -711,20 +772,32 @@ export function KnowledgeBasePreviewPanel({
                   </p>
                 ) : null}
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => uploadInputRef.current?.click()}
-                disabled={!knowledgeBaseId || isUploading || !canUseKnowledgeBase}
-              >
-                {isUploading ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Upload className="mr-1.5 h-3.5 w-3.5" />
-                )}
-                上传文档
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => uploadInputRef.current?.click()}
+                  disabled={!knowledgeBaseId || isUploading || !canUseKnowledgeBase}
+                >
+                  {isUploading ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  上传文档
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenChromaImport}
+                  disabled={!knowledgeBaseId || isUploading || !canUseKnowledgeBase}
+                >
+                  <Database className="mr-1.5 h-3.5 w-3.5" />
+                  Chroma 导入
+                </Button>
+              </div>
             </div>
 
             <input
@@ -1435,6 +1508,26 @@ export function KnowledgeBasePreviewPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ChromaImportDialog
+        open={isChromaImportOpen}
+        onOpenChange={setIsChromaImportOpen}
+        chromaPersistDir={chromaPersistDir}
+        onChromaPersistDirChange={setChromaPersistDir}
+        chromaCollectionName={chromaCollectionName}
+        onChromaCollectionNameChange={setChromaCollectionName}
+        importAllCollections={importAllCollections}
+        onImportAllCollectionsChange={setImportAllCollections}
+        chromaDocumentSourceKey={chromaDocumentSourceKey}
+        onChromaDocumentSourceKeyChange={setChromaDocumentSourceKey}
+        chromaEmbeddingModel={chromaEmbeddingModel}
+        onChromaEmbeddingModelChange={setChromaEmbeddingModel}
+        embeddingModels={allEmbeddingModels}
+        isLoadingModels={isLoadingModels}
+        importResults={chromaImportResults}
+        isImporting={isChromaImporting}
+        onImport={handleChromaImport}
+      />
     </div>
   );
 }

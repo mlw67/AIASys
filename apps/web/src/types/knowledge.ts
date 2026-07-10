@@ -158,3 +158,26 @@ export interface KnowledgeBaseRawQueryResponse {
   rows: Record<string, unknown>[];
   row_count: number;
 }
+
+export interface ChromaImportRequest {
+  chroma_persist_dir: string;
+  collection_name?: string;
+  embedding_model: string;
+  document_source_key?: string;
+}
+
+export interface ChromaImportResult {
+  success: boolean;
+  filename: string;
+  collection_name: string;
+  document_id?: string | null;
+  message: string;
+  chunk_count: number;
+}
+
+export interface ChromaImportResponse {
+  success: boolean;
+  imported_documents: number;
+  total_documents: number;
+  results: ChromaImportResult[];
+}

@@ -63,6 +63,7 @@ interface KBDetailPaneProps {
   isLoadingModels: boolean;
   onBack: () => void;
   onUpload: () => void;
+  onChromaImport: () => void;
   onQuery: () => void;
   onDeleteDoc: (docId: string) => void;
   onSaveConfig: (
@@ -82,6 +83,7 @@ export function KBDetailPane({
   isLoadingModels,
   onBack,
   onUpload,
+  onChromaImport,
   onQuery,
   onDeleteDoc,
   onSaveConfig,
@@ -224,6 +226,15 @@ export function KBDetailPane({
             >
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               上传文档
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onChromaImport}
+              disabled={!selectedKB.config_complete || selectedKB.init_status !== "ready"}
+            >
+              <Database className="mr-1.5 h-3.5 w-3.5" />
+              Chroma 导入
             </Button>
           </div>
         </div>

@@ -491,6 +491,8 @@ export const API_ENDPOINTS = {
   KNOWLEDGE_BASE_QUERY: (kbId: string) => `/api/knowledge/bases/${kbId}/query`,
   KNOWLEDGE_BASE_TABLES: (kbId: string) => `/api/knowledge/bases/${kbId}/tables`,
   KNOWLEDGE_BASE_RAW_QUERY: (kbId: string) => `/api/knowledge/bases/${kbId}/raw-query`,
+  KNOWLEDGE_BASE_IMPORT_CHROMA: (kbId: string) =>
+    `/api/knowledge/bases/${kbId}/import/chroma`,
   KNOWLEDGE_HEALTH: "/api/knowledge/health",
 
   // GraphRAG 知识图谱

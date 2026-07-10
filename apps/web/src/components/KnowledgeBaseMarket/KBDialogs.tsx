@@ -560,6 +560,7 @@ export function QueryDialog({
   );
 }
 
+
 interface DeleteConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;

@@ -17,6 +17,7 @@ import type {
   KnowledgeBaseSearchMode,
   UpdateKnowledgeBaseRequest,
   UploadDocumentResponse,
+  ChromaImportResponse,
 } from "@/types/knowledge";
 import {
   Dialog,
@@ -34,6 +35,11 @@ const UploadDialog = lazy(() =>
 );
 const QueryDialog = lazy(() =>
   import("./KBDialogs").then((module) => ({ default: module.QueryDialog })),
+);
+const ChromaImportDialog = lazy(() =>
+  import("@/components/knowledge/ChromaImportDialog").then((module) => ({
+    default: module.ChromaImportDialog,
+  })),
 );
 import { normalizeSearchMode } from "./constants";
 
@@ -70,6 +76,7 @@ export function KnowledgeBaseMarket({
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [embeddingModels, setEmbeddingModels] = useState<LLMModelConfig[]>([]);
+  const [allEmbeddingModels, setAllEmbeddingModels] = useState<LLMModelConfig[]>([]);
   const [defaultEmbeddingModelId, setDefaultEmbeddingModelId] = useState<string | null>(null);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
@@ -98,6 +105,14 @@ export function KnowledgeBaseMarket({
   const [isUploading, setIsUploading] = useState(false);
   const uploadAbortRef = useRef<AbortController | null>(null);
 
+  const [isChromaImportOpen, setIsChromaImportOpen] = useState(false);
+  const [chromaPersistDir, setChromaPersistDir] = useState("");
+  const [chromaCollectionName, setChromaCollectionName] = useState("");
+  const [importAllCollections, setImportAllCollections] = useState(false);
+  const [chromaDocumentSourceKey, setChromaDocumentSourceKey] = useState("source");
+  const [chromaEmbeddingModel, setChromaEmbeddingModel] = useState("");
+  const [chromaImportResults, setChromaImportResults] = useState<ChromaImportResponse | null>(null);
+  const [isChromaImporting, setIsChromaImporting] = useState(false);
 
   const [isQueryOpen, setIsQueryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -130,15 +145,19 @@ export function KnowledgeBaseMarket({
   const loadEmbeddingModels = async () => {
     setIsLoadingModels(true);
     try {
-      const [modelsResponse, defaults] = await Promise.all([
+      const [enabledResponse, allResponse, defaults] = await Promise.all([
         getModels(true),
+        getModels(false),
         getModelDefaults(),
       ]);
-      setEmbeddingModels(modelsResponse.models.filter((model) => model.model_type === "embedding"));
+      const isEmbedding = (model: LLMModelConfig) => model.model_type === "embedding";
+      setEmbeddingModels(enabledResponse.models.filter(isEmbedding));
+      setAllEmbeddingModels(allResponse.models.filter(isEmbedding));
       setDefaultEmbeddingModelId(defaults.default_embedding_model);
     } catch (err) {
       console.error("加载 embedding 模型失败:", err);
       setEmbeddingModels([]);
+      setAllEmbeddingModels([]);
       setDefaultEmbeddingModelId(null);
     } finally {
       setIsLoadingModels(false);
@@ -179,6 +198,21 @@ export function KnowledgeBaseMarket({
     setUploadChunkSize(String(selectedKB.chunk_size || 512));
     setUploadChunkOverlap(String(selectedKB.chunk_overlap || 50));
     setIsUploadOpen(true);
+  };
+
+  const openChromaImportDialog = () => {
+    if (!selectedKB) return;
+    if (!selectedKB.config_complete || selectedKB.init_status !== "ready") {
+      alert(selectedKB.config_issue || "需要先配置模型");
+      return;
+    }
+    setChromaPersistDir("");
+    setChromaCollectionName("");
+    setImportAllCollections(false);
+    setChromaDocumentSourceKey("source");
+    setChromaEmbeddingModel(selectedKB.embedding_model || defaultEmbeddingModelId || "");
+    setChromaImportResults(null);
+    setIsChromaImportOpen(true);
   };
 
   useEffect(() => {
@@ -432,6 +466,35 @@ export function KnowledgeBaseMarket({
     uploadAbortRef.current?.abort();
   };
 
+  const handleChromaImport = async () => {
+    if (!selectedKB) return;
+    if (!chromaPersistDir.trim() || (!importAllCollections && !chromaCollectionName.trim()) || !chromaEmbeddingModel) {
+      alert("请填写完整导入信息");
+      return;
+    }
+    setIsChromaImporting(true);
+    try {
+      const response = await knowledgeApi.importChroma(selectedKB.id, {
+        chroma_persist_dir: chromaPersistDir.trim(),
+        collection_name: importAllCollections ? undefined : chromaCollectionName.trim(),
+        embedding_model: chromaEmbeddingModel,
+        document_source_key: chromaDocumentSourceKey.trim() || "source",
+      });
+      setChromaImportResults(response);
+      if (response.success) {
+        const docs = await knowledgeApi.listDocuments(selectedKB.id);
+        setDocuments(docs);
+        await loadKnowledgeBases();
+        const refreshed = await knowledgeApi.getKnowledgeBase(selectedKB.id);
+        setSelectedKB(refreshed);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Chroma 导入失败");
+    } finally {
+      setIsChromaImporting(false);
+    }
+  };
+
   const handleDeleteDoc = async (docId: string) => {
     if (!selectedKB) return;
     setDeleteKind("doc");
@@ -514,6 +577,7 @@ export function KnowledgeBaseMarket({
             isLoadingModels={isLoadingModels}
             onBack={backToList}
             onUpload={openUploadDialog}
+            onChromaImport={openChromaImportDialog}
             onQuery={() => setIsQueryOpen(true)}
             onDeleteDoc={handleDeleteDoc}
             onSaveConfig={handleUpdateKBConfig}
@@ -551,6 +615,7 @@ export function KnowledgeBaseMarket({
       isLoadingModels={isLoadingModels}
       onBack={backToList}
       onUpload={openUploadDialog}
+      onChromaImport={openChromaImportDialog}
       onQuery={() => setIsQueryOpen(true)}
       onDeleteDoc={handleDeleteDoc}
       onSaveConfig={handleUpdateKBConfig}
@@ -601,7 +666,7 @@ export function KnowledgeBaseMarket({
           onCreateChunkSizeChange={setCreateChunkSize}
           createChunkOverlap={createChunkOverlap}
           onCreateChunkOverlapChange={setCreateChunkOverlap}
-          embeddingModels={embeddingModels}
+          embeddingModels={allEmbeddingModels}
           isLoadingModels={isLoadingModels}
           isCreating={isCreating}
           onCreate={handleCreate}
@@ -647,6 +712,28 @@ export function KnowledgeBaseMarket({
           queryResults={queryResults}
           isQuerying={isQuerying}
           onQuery={handleQuery}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <ChromaImportDialog
+          open={isChromaImportOpen}
+          onOpenChange={setIsChromaImportOpen}
+          chromaPersistDir={chromaPersistDir}
+          onChromaPersistDirChange={setChromaPersistDir}
+          chromaCollectionName={chromaCollectionName}
+          onChromaCollectionNameChange={setChromaCollectionName}
+          importAllCollections={importAllCollections}
+          onImportAllCollectionsChange={setImportAllCollections}
+          chromaDocumentSourceKey={chromaDocumentSourceKey}
+          onChromaDocumentSourceKeyChange={setChromaDocumentSourceKey}
+          chromaEmbeddingModel={chromaEmbeddingModel}
+          onChromaEmbeddingModelChange={setChromaEmbeddingModel}
+          embeddingModels={embeddingModels}
+          isLoadingModels={isLoadingModels}
+          importResults={chromaImportResults}
+          isImporting={isChromaImporting}
+          onImport={handleChromaImport}
         />
       </Suspense>
 
