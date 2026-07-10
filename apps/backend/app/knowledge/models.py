@@ -237,3 +237,51 @@ class BatchFileUploadResponse(BaseModel):
     embedding_model: Optional[str] = None
     chunk_size: Optional[int] = None
     chunk_overlap: Optional[int] = None
+
+
+# ----- Chroma Import -----
+
+
+class ChromaImportRequest(BaseModel):
+    """从 Chroma Vector Database 原生磁盘存储导入请求。"""
+
+    chroma_persist_dir: str = Field(
+        ...,
+        min_length=1,
+        description="Chroma 持久化目录路径，需包含 chroma.sqlite3",
+    )
+    collection_name: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description="要导入的 Chroma collection 名称。留空表示导入该目录下所有 collection。",
+    )
+    embedding_model: str = Field(
+        ...,
+        min_length=1,
+        description="与 Chroma 原始向量一致的 embedding 模型 ID",
+    )
+    document_source_key: str = Field(
+        default="source",
+        min_length=1,
+        description="用 metadata 中哪个字段将记录分组为文档",
+    )
+
+
+class ChromaImportResult(BaseModel):
+    """单个 source 分组的导入结果。"""
+
+    success: bool
+    filename: str
+    collection_name: str
+    document_id: Optional[str] = None
+    message: str
+    chunk_count: int = 0
+
+
+class ChromaImportResponse(BaseModel):
+    """Chroma 导入整体响应。"""
+
+    success: bool
+    imported_documents: int
+    total_documents: int
+    results: List[ChromaImportResult]

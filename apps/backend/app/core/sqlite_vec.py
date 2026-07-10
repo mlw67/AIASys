@@ -8,12 +8,17 @@ import os
 import platform
 import sqlite3
 import sys
+import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
 
 from app.utils.path_utils import as_system_path
 
 VENDOR_DIR = Path(__file__).resolve().parents[2] / "vendor" / "sqlite-vec"
+
+# 缓存已加入 DLL 搜索路径的目录，避免重复调用 os.add_dll_directory
+_added_dll_dirs: Set[str] = set()
+_added_dll_dirs_lock = threading.Lock()
 
 
 _EXTENSION_NAMES = {
@@ -49,8 +54,11 @@ def _resolve_load_path(ext_path: Path) -> str:
     确保 vec0.dll 的依赖（如有）能被正确找到。
     """
     if sys.platform == "win32":
-        # 将扩展所在目录加入 DLL 搜索路径（Python 3.8+ 安全语义）
-        os.add_dll_directory(str(ext_path.parent))
+        parent = os.path.normpath(str(ext_path.parent))
+        with _added_dll_dirs_lock:
+            if parent not in _added_dll_dirs:
+                os.add_dll_directory(parent)
+                _added_dll_dirs.add(parent)
         # 规范化为反斜杠，避免混用分隔符导致 LoadLibraryExW 失败
         return os.path.normpath(str(ext_path))
     return str(ext_path)

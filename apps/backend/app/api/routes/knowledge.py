@@ -13,8 +13,16 @@ from pydantic import BaseModel, Field
 
 from app.core.auth import UserInfo, get_current_user
 from app.knowledge import SQLiteKBService, get_sqlite_kb_service
+from app.knowledge.importers import (
+    group_chroma_records_by_source,
+    list_chroma_collections,
+    read_chroma_collection,
+)
 from app.knowledge.models import (
     BatchFileUploadResponse,
+    ChromaImportRequest,
+    ChromaImportResponse,
+    ChromaImportResult,
     DocumentResponse,
     FileUploadResponse,
     KnowledgeBaseCreate,
@@ -165,6 +173,142 @@ async def upload_documents(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
         search_mode=search_mode,
+    )
+
+
+async def _import_chroma_collection(
+    service: SQLiteKBService,
+    user_id: str,
+    kb_id: str,
+    embedding_model: str,
+    source_key: str,
+    persist_dir: str,
+    collection_name: str,
+) -> list[ChromaImportResult]:
+    """导入单个 Chroma collection，返回每个 source 分组的结果。"""
+    data = await asyncio.to_thread(
+        read_chroma_collection,
+        persist_dir,
+        collection_name,
+    )
+    groups = group_chroma_records_by_source(
+        data["ids"],
+        data["documents"],
+        data["embeddings"],
+        data["metadatas"],
+        source_key=source_key,
+    )
+
+    results: list[ChromaImportResult] = []
+    for source, records in groups.items():
+        chunks = [
+            {
+                "index": idx,
+                "content": r["content"],
+                "metadata": r["metadata"],
+            }
+            for idx, r in enumerate(records)
+        ]
+        embeddings = [r["embedding"] for r in records]
+        try:
+            upload_result = await service.import_precomputed_chunks(
+                user_id=user_id,
+                kb_id=kb_id,
+                filename=source,
+                chunks=chunks,
+                embeddings=embeddings,
+                embedding_model=embedding_model,
+            )
+            results.append(
+                ChromaImportResult(
+                    success=upload_result.success,
+                    filename=upload_result.filename,
+                    collection_name=collection_name,
+                    document_id=upload_result.document_id,
+                    message=upload_result.message,
+                    chunk_count=upload_result.chunk_count or 0,
+                )
+            )
+        except Exception as exc:
+            results.append(
+                ChromaImportResult(
+                    success=False,
+                    filename=source,
+                    collection_name=collection_name,
+                    message=str(exc),
+                    chunk_count=0,
+                )
+            )
+    return results
+
+
+@router.post("/bases/{kb_id}/import/chroma", response_model=ChromaImportResponse)
+async def import_chroma(
+    kb_id: str,
+    request: ChromaImportRequest,
+    user: UserInfo = Depends(get_current_user),
+    service: SQLiteKBService = Depends(get_sqlite_kb_service),
+):
+    """从 Chroma Vector Database 原生磁盘存储导入数据到知识库。
+
+    不重新调用 embedding API，直接把 Chroma 中已有的向量写入 sqlite-vec。
+    若未指定 collection_name，则导入该持久化目录下所有 collection。
+    """
+    try:
+        collection_names = (
+            [request.collection_name]
+            if request.collection_name
+            else await asyncio.to_thread(list_chroma_collections, request.chroma_persist_dir)
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not collection_names:
+        return ChromaImportResponse(
+            success=False,
+            imported_documents=0,
+            total_documents=0,
+            results=[
+                ChromaImportResult(
+                    success=False,
+                    filename="",
+                    collection_name="",
+                    message="未找到任何 collection",
+                    chunk_count=0,
+                )
+            ],
+        )
+
+    results: list[ChromaImportResult] = []
+    for collection_name in collection_names:
+        try:
+            collection_results = await _import_chroma_collection(
+                service,
+                user.user_id,
+                kb_id,
+                request.embedding_model,
+                request.document_source_key,
+                request.chroma_persist_dir,
+                collection_name,
+            )
+            results.extend(collection_results)
+        except Exception as exc:
+            results.append(
+                ChromaImportResult(
+                    success=False,
+                    filename="",
+                    collection_name=collection_name,
+                    message=str(exc),
+                    chunk_count=0,
+                )
+            )
+
+    successful = sum(1 for r in results if r.success)
+    return ChromaImportResponse(
+        success=successful == len(results) and len(results) > 0,
+        imported_documents=successful,
+        total_documents=len(results),
+        results=results,
     )
 
 

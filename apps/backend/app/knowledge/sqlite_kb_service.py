@@ -15,8 +15,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from app.utils.path_utils import as_system_path
-
 import jieba
 
 from app.core.sqlite_vec import ensure_vec_extension
@@ -24,6 +22,7 @@ from app.core.time import utc_now_naive
 from app.document_extraction import get_document_extraction_service
 from app.knowledge.models import DocumentStatus
 from app.services.llm import get_llm_config_service
+from app.utils.path_utils import as_system_path
 
 from .embedder import BaseEmbedder, OpenAIEmbedder
 from .models import (
@@ -89,23 +88,76 @@ class SQLiteKBService:
 
     @staticmethod
     def _get_embedding_dimension(user_id: str, embedding_model: str) -> int:
-        resolved = get_llm_config_service().resolve_embedding_model_config(user_id, embedding_model)
+        service = get_llm_config_service()
+        # 优先直接读取模型配置（含已禁用的 embedding 模型），因为 Chroma 导入只关心维度，不调用 API
+        model = service.get_model(user_id, embedding_model)
+        if model and getattr(model, "model_type", None) == "embedding":
+            dimension = getattr(model, "dimension", None)
+            if dimension:
+                return int(dimension)
+            model_name = str(getattr(model, "model", "") or embedding_model).lower()
+        else:
+            model_name = str(embedding_model).lower()
+
+        resolved = service.resolve_embedding_model_config(user_id, embedding_model)
         if resolved and resolved.get("dimension"):
             return int(resolved["dimension"])
-        if not resolved:
-            raise ValueError(
-                f"未找到 embedding 模型配置: {embedding_model}。"
-                "请在 LLM 设置中配置 embedding 模型，或在 config.toml 中设置 embedding 段作为系统默认。"
-            )
-        # resolved 存在但没有 dimension 字段，根据模型名推断
-        model_name = str(resolved.get("model_name") or embedding_model).lower()
+
+        # 按模型名推断维度
         if "bge-m3" in model_name:
             return 1024
         if "text-embedding-3-small" in model_name or "text-embedding-v4" in model_name:
             return 1536
         if "text-embedding-3-large" in model_name:
             return 3072
+
+        if model is None and not resolved:
+            raise ValueError(
+                f"未找到 embedding 模型配置: {embedding_model}。"
+                "请在 LLM 设置中配置 embedding 模型，或在 config.toml 中设置 embedding 段作为系统默认。"
+            )
         return 1536
+
+    def _get_kb_embedding_model(self, user_id: str, kb_id: str) -> Optional[str]:
+        """读取知识库当前配置的 embedding_model。"""
+        info = self.get_knowledge_base(user_id, kb_id)
+        return info.embedding_model if info else None
+
+    def _ensure_kb_embedding_model(
+        self,
+        user_id: str,
+        kb_id: str,
+        embedding_model: str,
+    ) -> None:
+        """确保知识库配置了 embedding_model；未配置时更新并创建向量表。
+
+        导入预计算向量前必须知道目标维度，因此要求传入 embedding_model。
+        如果知识库原本没有配置，会自动更新元数据并创建 vec0 向量表。
+        """
+        existing = self._read_kb_metadata(user_id, kb_id)
+        current_model = existing.get("embedding_model")
+        if current_model and current_model != embedding_model:
+            raise ValueError(
+                f"知识库已配置 embedding_model='{current_model}'，"
+                f"与导入指定的 '{embedding_model}' 不一致"
+            )
+
+        if not current_model:
+            # 更新知识库元数据，补全 embedding_model
+            kb = self._read_kb_info(
+                self._find_db_file(user_id, kb_id)
+                or self._db_path(self._resolve_workspace_root_for_kb(user_id, kb_id), kb_id)
+            )
+            kb["embedding_model"] = embedding_model
+            self._sync_kb_runtime_metadata(
+                user_id,
+                kb_id,
+                kb,
+                init_status=KnowledgeBaseInitStatus.READY,
+            )
+
+        # 确保 vec0 表已按目标维度创建
+        self._ensure_kb_schema(user_id, kb_id, embedding_model)
 
     # ==================== 数据库路径 ====================
 
@@ -1019,9 +1071,7 @@ class SQLiteKBService:
             search_mode=(
                 search_mode.value
                 if isinstance(search_mode, SearchMode)
-                else str(search_mode)
-                if search_mode is not None
-                else None
+                else str(search_mode) if search_mode is not None else None
             ),
             embedding_model=embedding_model,
             chunk_size=chunk_size,
@@ -1082,8 +1132,11 @@ class SQLiteKBService:
         file_type: str,
         file_bytes: bytes,
         now: str,
+        file_size: Optional[int] = None,
     ) -> None:
         """同步：在知识库中插入一条 processing 状态的文档记录。"""
+        if file_size is None:
+            file_size = len(file_bytes)
         conn = self._get_conn(user_id, kb_id)
         try:
             conn.execute(
@@ -1095,7 +1148,7 @@ class SQLiteKBService:
                     doc_id,
                     filename,
                     file_type,
-                    len(file_bytes),
+                    file_size,
                     DocumentStatus.PROCESSING.value,
                     0,
                     now,
@@ -1198,6 +1251,122 @@ class SQLiteKBService:
             requested_extraction_mode=extraction.requested_mode.value,
             search_mode=kb.get("default_search_mode", SearchMode.FULLTEXT.value),
             embedding_model=kb.get("embedding_model"),
+            chunk_size=kb.get("chunk_size", 512),
+            chunk_overlap=kb.get("chunk_overlap", 50),
+        )
+
+    async def import_precomputed_chunks(
+        self,
+        user_id: str,
+        kb_id: str,
+        filename: str,
+        chunks: List[Dict[str, Any]],
+        embeddings: List[List[float]],
+        *,
+        embedding_model: str,
+        file_type: str = "chroma",
+    ) -> FileUploadResponse:
+        """直接导入已分块且已有向量的数据，不重新调用 embedding API。
+
+        用于从 Chroma 等外部向量数据库迁移数据：外部库已经保存了
+        documents 和 embeddings，这里直接把向量写进 sqlite-vec。
+
+        Args:
+            user_id: 用户 ID。
+            kb_id: 目标知识库 ID。
+            filename: 导入后显示的文档/来源名称。
+            chunks: 分块列表，每项至少包含 ``index``、``content``、``metadata``。
+            embeddings: 与 chunks 一一对应的向量列表。
+            embedding_model: 与原始向量生成时一致的 embedding 模型 ID。
+            file_type: 文档类型标识，默认 ``chroma``。
+
+        Returns:
+            导入结果响应。
+        """
+        if len(chunks) != len(embeddings):
+            raise ValueError("chunks 与 embeddings 长度不一致")
+        if not chunks:
+            raise ValueError("chunks 为空")
+
+        # 确保知识库配置了正确的 embedding_model 且向量表维度匹配
+        self._ensure_kb_embedding_model(user_id, kb_id, embedding_model)
+
+        actual_dim = len(embeddings[0])
+        expected_dim = self._get_embedding_dimension(user_id, embedding_model)
+        if actual_dim != expected_dim:
+            raise ValueError(
+                f"向量维度 {actual_dim} 与 embedding_model '{embedding_model}' "
+                f"配置的维度 {expected_dim} 不一致"
+            )
+
+        doc_id = str(uuid.uuid4())
+        now = utc_now_naive().isoformat()
+        chunk_ids = [str(uuid.uuid4()) for _ in chunks]
+
+        # Chroma 导入没有原始文件字节，按文本内容估算文件大小
+        estimated_size = sum(len(str(chunk.get("content", "")).encode("utf-8")) for chunk in chunks)
+
+        # 1. 写入 processing 文档记录
+        self._insert_processing_document_sync(
+            user_id, kb_id, doc_id, filename, file_type, b"", now, file_size=estimated_size
+        )
+
+        # 2. 写入 vec0 向量表 + FTS5 全文索引
+        self._insert_chunks(user_id, kb_id, doc_id, chunk_ids, chunks, embeddings)
+
+        # 3. 写入 kb_chunks 并更新文档状态
+        conn = self._get_conn(user_id, kb_id)
+        try:
+            for i, chunk in enumerate(chunks):
+                conn.execute(
+                    """
+                    INSERT INTO kb_chunks (id, document_id, chunk_index, content, meta_json, chunk_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        str(uuid.uuid4()),
+                        doc_id,
+                        chunk["index"],
+                        chunk["content"],
+                        json.dumps(chunk.get("metadata", {})),
+                        chunk_ids[i],
+                    ],
+                )
+            conn.execute(
+                """
+                UPDATE kb_documents SET status = ?, chunk_count = ?, updated_at = ? WHERE id = ?
+                """,
+                [
+                    DocumentStatus.COMPLETED.value,
+                    len(chunks),
+                    utc_now_naive().isoformat(),
+                    doc_id,
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        # 4. 同步知识库元数据
+        kb = self._read_kb_info(self._find_db_file(user_id, kb_id))
+        next_version = self._next_config_version(user_id, kb_id)
+        self._sync_kb_runtime_metadata(
+            user_id,
+            kb_id,
+            kb,
+            config_version=next_version,
+            last_indexed_config_version=next_version,
+            init_status=KnowledgeBaseInitStatus.READY,
+        )
+
+        return FileUploadResponse(
+            success=True,
+            document_id=doc_id,
+            filename=filename,
+            message="导入成功",
+            chunk_count=len(chunks),
+            search_mode=kb.get("default_search_mode", SearchMode.FULLTEXT.value),
+            embedding_model=embedding_model,
             chunk_size=kb.get("chunk_size", 512),
             chunk_overlap=kb.get("chunk_overlap", 50),
         )
@@ -1421,9 +1590,9 @@ class SQLiteKBService:
                     document_id=chunk["document_id"],
                     document_name=doc["filename"] if doc else "Unknown",
                     chunk_index=chunk["chunk_index"],
-                    metadata=json.loads(chunk.get("meta_json") or "{}")
-                    if chunk.get("meta_json")
-                    else {},
+                    metadata=(
+                        json.loads(chunk.get("meta_json") or "{}") if chunk.get("meta_json") else {}
+                    ),
                 )
             )
 
