@@ -7,10 +7,13 @@ AIASys 知识库可接收的 chunk + embedding 格式。
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
+import shutil
 import sqlite3
 import struct
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -76,6 +79,37 @@ def _decode_float32_vector(blob: bytes) -> list[float]:
     if len(blob) % 4 != 0:
         raise ChromaImportError("向量 BLOB 长度不是 4 的倍数，无法按 FLOAT32 解码")
     return list(struct.unpack(f"{len(blob) // 4}f", blob))
+
+
+def _is_header_file_error(exc: Exception) -> bool:
+    """判断是否为 hnswlib 'Cannot open header file' 错误。"""
+    return "Cannot open header file" in str(exc)
+
+
+def _should_use_temp_copy(persist_dir: str) -> bool:
+    """判断是否需要先复制到 ASCII 临时目录。
+
+    hnswlib 在 Windows 上通过 ANSI fopen 打开索引文件，非 ASCII 路径会报
+    'Cannot open header file'。遇到非 ASCII 路径时直接复制到 ASCII 临时目录
+    可避免该问题，也避免第一次打开时占用源目录文件句柄导致复制失败。
+    """
+    try:
+        persist_dir.encode("ascii")
+        return False
+    except UnicodeEncodeError:
+        return True
+
+
+def _copy_chroma_to_temp(persist_dir: str) -> str:
+    """将 Chroma 持久化目录复制到一个 ASCII 临时目录。
+
+    hnswlib 在 Windows 上对非 ASCII 路径的 fopen 可能失败，复制到纯 ASCII
+    临时目录后可绕过该问题。
+    """
+    temp_root = tempfile.mkdtemp(prefix="chroma_import_")
+    dest = Path(temp_root) / "chroma_data"
+    shutil.copytree(persist_dir, dest, dirs_exist_ok=True)
+    return str(dest)
 
 
 def _get_collection_topic(persist_dir: str, collection_name: str) -> Optional[str]:
@@ -147,6 +181,10 @@ def _read_collection_from_queue(
             records.pop(id_, None)
             continue
 
+        # Chroma embeddings_queue 中 0=ADD, 1=UPDATE, 2=UPSERT
+        if operation not in (0, 1, 2):
+            continue
+
         if not vector_blob:
             raise ChromaImportError(f"记录 {id_} 缺少向量数据，无法从 embeddings_queue 还原")
 
@@ -206,24 +244,65 @@ def read_chroma_collection(
 
     _validate_chroma_dir(persist_dir)
 
-    try:
-        client = chromadb.PersistentClient(path=persist_dir)
+    def _try_read(path: str) -> Any:
+        client = chromadb.PersistentClient(path=path)
         collection = client.get_collection(collection_name)
-        data = collection.get(
+        return collection.get(
             include=["documents", "embeddings", "metadatas"],
         )
-    except RuntimeError as exc:
-        err_msg = str(exc)
-        if "Cannot open header file" in err_msg:
+
+    if _should_use_temp_copy(persist_dir):
+        logger.info(
+            "Chroma 持久化目录包含非 ASCII 字符，先复制到 ASCII 临时目录再读取: %s",
+            collection_name,
+        )
+        temp_persist: Optional[str] = None
+        try:
+            temp_persist = _copy_chroma_to_temp(persist_dir)
+            data = _try_read(temp_persist)
+        except Exception as temp_exc:
             logger.warning(
-                "collection '%s' 的 HNSW 索引无法加载（%s），尝试从 embeddings_queue 降级读取",
-                collection_name,
-                err_msg,
+                "ASCII 临时目录读取失败（%s），降级从 embeddings_queue 读取",
+                temp_exc,
             )
             return _read_collection_from_queue(persist_dir, collection_name)
-        raise ChromaImportError(f"读取 Chroma collection '{collection_name}' 失败: {exc}") from exc
-    except Exception as exc:
-        raise ChromaImportError(f"读取 Chroma collection '{collection_name}' 失败: {exc}") from exc
+        finally:
+            if temp_persist is not None:
+                shutil.rmtree(Path(temp_persist).parent, ignore_errors=True)
+    else:
+        try:
+            data = _try_read(persist_dir)
+        except RuntimeError as exc:
+            if _is_header_file_error(exc):
+                logger.warning(
+                    "collection '%s' 的 HNSW 索引无法加载（%s），尝试复制到 ASCII 临时目录后重读",
+                    collection_name,
+                    exc,
+                )
+                # 强制释放可能占用的源目录文件句柄
+                gc.collect()
+                temp_persist = None
+                try:
+                    temp_persist = _copy_chroma_to_temp(persist_dir)
+                    data = _try_read(temp_persist)
+                    logger.info(
+                        "通过 ASCII 临时目录成功读取 collection '%s': %d 条记录",
+                        collection_name,
+                        len(data.get("ids") or []),
+                    )
+                except Exception as retry_exc:
+                    logger.warning(
+                        "ASCII 临时目录重读失败（%s），降级从 embeddings_queue 读取",
+                        retry_exc,
+                    )
+                    return _read_collection_from_queue(persist_dir, collection_name)
+                finally:
+                    if temp_persist is not None:
+                        shutil.rmtree(Path(temp_persist).parent, ignore_errors=True)
+            else:
+                raise ChromaImportError(f"读取 Chroma collection '{collection_name}' 失败: {exc}") from exc
+        except Exception as exc:
+            raise ChromaImportError(f"读取 Chroma collection '{collection_name}' 失败: {exc}") from exc
 
     # 兼容 chromadb 可能返回 numpy 数组的场景，统一转为 list
     ids = list(data.get("ids") or [])
@@ -276,11 +355,18 @@ def group_chroma_records_by_source(
     Returns:
         以 source 值为键、记录列表为值的分组字典。
     """
+    def _resolve_source(metadata: dict[str, Any], preferred_key: str, index: int) -> str:
+        for key in (preferred_key, "source_file", "filename", "source", "doc_id"):
+            value = metadata.get(key)
+            if value is not None and str(value):
+                return str(value)
+        # 没有可用 source 字段时使用短后缀，避免 chroma_id 过长导致 Windows 路径/文件名问题
+        return f"__single__{index}"
+
     groups: dict[str, list[dict[str, Any]]] = {}
     for i, chroma_id in enumerate(ids):
         metadata = dict(metadatas[i] or {})
-        # 没有 source 字段时使用短后缀，避免 chroma_id 过长导致 Windows 路径/文件名问题
-        source = str(metadata.get(source_key) or f"__single__{i}")
+        source = _resolve_source(metadata, source_key, i)
         groups.setdefault(source, []).append(
             {
                 "chroma_id": chroma_id,
