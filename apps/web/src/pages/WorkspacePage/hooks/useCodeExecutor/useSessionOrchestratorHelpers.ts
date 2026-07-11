@@ -75,6 +75,7 @@ export async function requestCreateSession(
           session_id: sessionId,
           workspace_id: workspaceId || undefined,
           title: title || "新对话",
+          status: "active",
         },
       },
     );
