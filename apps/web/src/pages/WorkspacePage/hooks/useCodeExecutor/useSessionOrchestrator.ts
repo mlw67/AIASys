@@ -8,7 +8,7 @@ import type { UploadedFile } from "@/hooks/useAgentFileUpload";
 import type { WorkspaceFile, TaskEvent } from "@/types/task";
 import {
   navigateToAnalysisSession,
-  requestCreateSession,
+  requestAvailableDraftId,
   requestDraftCleanup,
 } from "./useSessionOrchestratorHelpers";
 import {
@@ -214,16 +214,38 @@ export function useSessionOrchestrator({
     onSessionSelect: handleSessionLoaded,
   });
 
+  // 获取可用预热草稿（智能复用）
+  const getAvailableDraft = useCallback(async (): Promise<string | null> => {
+    try {
+      return await requestAvailableDraftId(apiBaseUrl, getWorkspaceId?.());
+    } catch (err) {
+      console.warn("[Session] 获取可用草稿失败:", err);
+    }
+    return null;
+  }, [apiBaseUrl, getWorkspaceId]);
+
   const prepareNewSession = useCallback(async () => {
+    const hasConversation = chatItems.length > 0;
+
     // 一旦用户显式开始“新任务”流程，任何旧的历史恢复回包都不应再接管前台。
     pendingRestoreSessionIdRef.current = null;
+
+    if (!hasConversation) {
+      return sessionId;
+    }
 
     cleanupDraftSessions();
 
     // 不再 resetAgentStream/resetMultiTask — 保留后台运行的流
-    // 用户主动点击“新建对话”时总是创建全新 session，不复用可用草稿，
-    // 避免多次新建后仍然只有一个会话显示。
-    const newId = generateShortId();
+    // 只初始化新 session 的 slot
+    const availableDraftId = await getAvailableDraft();
+    let newId: string;
+
+    if (availableDraftId) {
+      newId = availableDraftId;
+    } else {
+      newId = generateShortId();
+    }
 
     // 初始化新 session
     initChatSession(newId);
@@ -231,9 +253,12 @@ export function useSessionOrchestrator({
 
     return newId;
   }, [
+    chatItems.length,
+    sessionId,
     initChatSession,
     initMultiTaskSession,
     cleanupDraftSessions,
+    getAvailableDraft,
   ]);
 
   const activatePreparedSession = useCallback(async (targetSessionId: string) => {
@@ -285,17 +310,9 @@ export function useSessionOrchestrator({
 
   const handleNewSession = useCallback(async () => {
     const targetSessionId = await prepareNewSession();
-    // 确保后端已创建 session 元数据，避免前端切换后刷新丢失会话。
-    // 失败不阻塞 UI，继续走前端乐观切换。
-    void requestCreateSession(
-      apiBaseUrl,
-      targetSessionId,
-      getWorkspaceId?.(),
-      "新对话",
-    );
     await activatePreparedSession(targetSessionId);
     return targetSessionId;
-  }, [prepareNewSession, activatePreparedSession, apiBaseUrl, getWorkspaceId]);
+  }, [prepareNewSession, activatePreparedSession]);
 
   const activateReplacementDraft = useCallback(async () => {
     // 删除当前正在查看的会话时，总是先切到一个全新的空白草稿，

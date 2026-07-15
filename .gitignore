@@ -75,6 +75,7 @@ apps/web/.vite/
 apps/web/playwright-report/
 apps/web/test-results/
 apps/desktop/.dist/
+apps/desktop/dist-*/
 
 # Root-level fallback: any artifact dir at repo root should be ignored
 /artifacts/
@@ -111,7 +112,7 @@ docs/superpowers/
 /.agents/**/.git/
 
 # 设计草稿（不纳入项目）
-/design-draft/**
+/AIASys-design-draft/**
 
 # 前端截图验证产物
 apps/design-draft/
